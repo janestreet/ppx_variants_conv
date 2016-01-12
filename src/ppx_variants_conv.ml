@@ -253,7 +253,7 @@ module Gen_sig = struct
       Location.raise_errorf ~loc
         "nonrec is not compatible with the `ppx_variants_conv' preprocessor";
     match tds with
-    | [td] -> variants_of_td td |> Type_conv.Generator_result.make_just_after
+    | [td] -> variants_of_td td
     | _ -> Location.raise_errorf ~loc "ppx_variants_conv: not supported"
 end
 
@@ -423,7 +423,7 @@ module Gen_str = struct
         | `Type -> [%expr  () ]
         | `Polymorphic | `Normal -> evar ~loc variant_name
       in
-      [%expr [%e evar ~loc @@ variant_name ^ "_fun__"] [%e apply_to] ]
+      [%expr ([%e evar ~loc @@ variant_name ^ "_fun__"] [%e apply_to] : unit) ]
     in
     let body =
       match variants with
@@ -479,7 +479,7 @@ module Gen_str = struct
       Location.raise_errorf ~loc
         "nonrec is not compatible with the `ppx_variants_conv' preprocessor";
     match tds with
-    | [td] -> variants_of_td td |> Type_conv.Generator_result.make_just_after
+    | [td] -> variants_of_td td
     | _ -> Location.raise_errorf ~loc "ppx_variants_conv: not supported"
 end
 
