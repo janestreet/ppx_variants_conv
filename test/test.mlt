@@ -1,0 +1,91 @@
+open Variantslib
+
+#verbose true;;
+
+module Normal = struct
+  type t =  Foo of int | Bar [@@deriving variants]
+end
+
+[%%expect{|
+module Normal :
+  sig
+    type t = Foo of int | Bar
+    val bar : t
+    val foo : int -> t
+    module Variants :
+      sig
+        val bar : t Variant.t
+        val foo : (int -> t) Variant.t
+        val fold :
+          init:'a ->
+          foo:('a -> (int -> t) Variant.t -> 'b) ->
+          bar:('b -> t Variant.t -> 'c) -> 'c
+        val iter :
+          foo:((int -> t) Variant.t -> unit) ->
+          bar:(t Variant.t -> unit) -> unit
+        val map :
+          t ->
+          foo:((int -> t) Variant.t -> int -> 'a) ->
+          bar:(t Variant.t -> 'a) -> 'a
+        val to_rank : t -> int
+        val to_name : t -> bytes
+        val descriptions : (bytes * int) list
+      end
+  end
+|}];;
+
+module Poly = struct
+  type t =  [ `Foo of int | `Bar ] [@@deriving variants]
+end
+
+[%%expect{|
+module Poly :
+  sig
+    type t = [ `Bar | `Foo of int ]
+    val bar : [> `Bar ]
+    val foo : 'a -> [> `Foo of 'a ]
+    module Variants :
+      sig
+        val bar : [> `Bar ] Variant.t
+        val foo : ('a -> [> `Foo of 'a ]) Variant.t
+        val fold :
+          init:'a ->
+          foo:('a -> ('b -> [> `Foo of 'b ]) Variant.t -> 'c) ->
+          bar:('c -> [> `Bar ] Variant.t -> 'd) -> 'd
+        val iter :
+          foo:(('a -> [> `Foo of 'a ]) Variant.t -> unit) ->
+          bar:([> `Bar ] Variant.t -> unit) -> unit
+        val map :
+          [< `Bar | `Foo of 'a ] ->
+          foo:(('b -> [> `Foo of 'b ]) Variant.t -> 'a -> 'c) ->
+          bar:([> `Bar ] Variant.t -> 'c) -> 'c
+        val to_rank : [< `Bar | `Foo of 'a ] -> int
+        val to_name : [< `Bar | `Foo of 'a ] -> bytes
+        val descriptions : (bytes * int) list
+      end
+  end
+|}];;
+
+type fail1 = [ Poly.t | `Blah ] [@@deriving variants]
+[%%expect{|
+Line _, characters 0-53:
+ppx_variants_conv: polymorphic variant inclusion is not supported
+|}];;
+
+type fail2 = [> `Foo | `Bar ] [@@deriving variants]
+[%%expect{|
+Line _, characters 13-29:
+ppx_variants_conv: polymorphic variants with a row variable are not supported
+|}];;
+
+type fail3 = [< `Foo | `Bar ] [@@deriving variants]
+[%%expect{|
+Line _, characters 13-29:
+ppx_variants_conv: polymorphic variants with a row variable are not supported
+|}];;
+
+type fail4 = [< `Foo | `Bar > `Foo ] [@@deriving variants]
+[%%expect{|
+Line _, characters 13-36:
+ppx_variants_conv: polymorphic variants with a row variable are not supported
+|}];;

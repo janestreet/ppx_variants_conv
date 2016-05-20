@@ -61,6 +61,8 @@ module Variants : sig
     -> d: ((int -> int -> 'a t) Variant.t -> int -> int -> 'a t -> 'r)
     -> 'r
 
+  val to_rank : _ t -> int
+
   (** name * number of arguments, ie [("A", 1); ("B", 1); ("C", 0); ("D", 2)]. *)
   val descriptions : (string * int) list
 end
