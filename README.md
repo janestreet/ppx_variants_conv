@@ -62,6 +62,7 @@ module Variants : sig
     -> 'r
 
   val to_rank : _ t -> int
+  val to_name : _ t -> string
 
   (** name * number of arguments, ie [("A", 1); ("B", 1); ("C", 0); ("D", 2)]. *)
   val descriptions : (string * int) list
