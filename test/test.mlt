@@ -28,8 +28,8 @@ module Normal :
           foo:((int -> t) Variant.t -> int -> 'a) ->
           bar:(t Variant.t -> 'a) -> 'a
         val to_rank : t -> int
-        val to_name : t -> bytes
-        val descriptions : (bytes * int) list
+        val to_name : t -> string
+        val descriptions : (string * int) list
       end
   end
 |}];;
@@ -60,8 +60,8 @@ module Poly :
           foo:(('b -> [> `Foo of 'b ]) Variant.t -> 'a -> 'c) ->
           bar:([> `Bar ] Variant.t -> 'c) -> 'c
         val to_rank : [< `Bar | `Foo of 'a ] -> int
-        val to_name : [< `Bar | `Foo of 'a ] -> bytes
-        val descriptions : (bytes * int) list
+        val to_name : [< `Bar | `Foo of 'a ] -> string
+        val descriptions : (string * int) list
       end
   end
 |}];;

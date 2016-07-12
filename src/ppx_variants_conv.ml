@@ -13,6 +13,10 @@ open Ppx_type_conv.Std
 
 [@@@metaloc loc]
 
+let inline_records_are_unsupported ~loc =
+  Location.raise_errorf ~loc "ppx_bin_prot: inline records are not supported yet"
+;;
+
 module List = struct
   include List
   (* import from core *)
@@ -34,7 +38,7 @@ module Create = struct
 
   let lambda_sig loc arg_tys body_ty =
     List.fold_right arg_tys ~init:body_ty ~f:(fun arg_ty acc ->
-      ptyp_arrow ~loc "" arg_ty acc)
+      ptyp_arrow ~loc Nolabel arg_ty acc)
   ;;
 
   let lambda_sig' loc arg_tys body_ty =
@@ -77,9 +81,14 @@ module Inspect = struct
   let constructor body_ty cd : Variant_definition.t =
     if cd.pcd_res <> None then
       Location.raise_errorf ~loc:cd.pcd_loc "GADTs are not supported by variantslib";
+    let pcd_args =
+      match cd.pcd_args with
+      | Pcstr_tuple pcd_args -> pcd_args
+      | Pcstr_record _ -> inline_records_are_unsupported ~loc:cd.pcd_loc
+    in
     { name = cd.pcd_name.txt
     ; body_ty
-    ; arg_tys = cd.pcd_args
+    ; arg_tys = pcd_args
     ; kind = `Normal
     }
 
@@ -103,7 +112,7 @@ module Gen_sig = struct
     ptyp_constr ~loc (Located.lident ~loc ty_name) tps
 
   let label_arg _loc name ty =
-    (String.lowercase name, ty)
+    (Asttypes.Labelled (String.lowercase name), ty)
   ;;
 
   let variant_arg loc f v =
@@ -151,7 +160,7 @@ module Gen_sig = struct
     in
     let types = List.map variants ~f in
     let t = Create.lambda_sig' loc
-      (("", variant_type) :: types) result_type in
+      ((Nolabel, variant_type) :: types) result_type in
     psig_value ~loc (value_description ~loc ~name:(Located.mk ~loc "map") ~type_:t
                        ~prim:[])
   ;;
@@ -278,7 +287,7 @@ module Gen_str = struct
       | None    -> name
       | Some n  -> n
     in
-    (l, pvar ~loc name)
+    (Asttypes.Labelled l, pvar ~loc name)
   ;;
 
   let label_arg_fun loc name =
@@ -355,7 +364,7 @@ module Gen_str = struct
       List.map variants ~f:(fun variant ->
         label_arg_fun loc (variant_name_to_string variant.V.name))
     in
-    let lambda = Create.lambda loc (("", [%pat? t__]) :: patterns) body in
+    let lambda = Create.lambda loc ((Nolabel, [%pat? t__]) :: patterns) body in
     [%stri let map = [%e lambda] ]
   ;;
 
@@ -385,9 +394,14 @@ module Gen_str = struct
       match ty with
       | `Normal l ->
         List.mapi l ~f:(fun rank cd ->
+          let pcd_args =
+            match cd.pcd_args with
+            | Pcstr_tuple pcd_args -> pcd_args
+            | Pcstr_record _ -> inline_records_are_unsupported ~loc:cd.pcd_loc
+          in
           pconstruct cd
             (ppat_tuple_opt ~loc
-               (List.map cd.pcd_args ~f:(fun _ -> ppat_any ~loc))),
+               (List.map pcd_args ~f:(fun _ -> ppat_any ~loc))),
           f ~rank ~name:cd.pcd_name.txt
         )
       | `Polymorphic l ->
