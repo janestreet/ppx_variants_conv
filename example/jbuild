@@ -1,0 +1,8 @@
+(executables
+ ((names (test))
+  (libraries (variantslib))
+  (preprocess (((pps (pa_type_conv pa_variants_conv)) All)))))
+
+(alias
+ ((name DEFAULT)
+  (deps (test.ml.pp test.mli.pp))))

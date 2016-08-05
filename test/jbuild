@@ -1,0 +1,2 @@
+(toplevel_expect_tests
+ ((libraries (variantslib ppx_variants_conv))))
