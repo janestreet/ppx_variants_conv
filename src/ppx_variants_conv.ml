@@ -124,16 +124,6 @@ let variant_name_to_string v =
   | "try" -> "try_"
   | s -> s
 
-let runtime_module_outside_base = Longident.parse "Variantslib.Variant"
-let runtime_module_inside_base = Longident.parse "Variant"
-let runtime_module () =
-  if Ppx_inside_base.get ()
-  then runtime_module_inside_base
-  else runtime_module_outside_base
-let runtime_ident name = Longident.Ldot (runtime_module (), name)
-let runtime_loc_ident ~loc name = Located.mk ~loc (runtime_ident name)
-let runtime_typ ~loc name args = ptyp_constr ~loc (runtime_loc_ident ~loc name) args
-
 module Gen_sig = struct
   let apply_type loc ~ty_name ~tps =
     ptyp_constr ~loc (Located.lident ~loc ty_name) tps
@@ -148,7 +138,9 @@ module Gen_sig = struct
 
   let variant_arg f ~variant_type (v : Variant_constructor.t) =
     let loc = v.loc in
-    let variant = runtime_typ ~loc "t" [ Variant_constructor.to_fun_type v ~rhs:variant_type ] in
+    let variant =
+      [%type: [%t Variant_constructor.to_fun_type v ~rhs:variant_type] Variantslib.Variant.t]
+    in
     label_arg loc v.Variant_constructor.name (f ~variant)
   ;;
 
@@ -174,7 +166,7 @@ module Gen_sig = struct
       let variant =
         let constructor_type = V.to_fun_type v ~rhs:variant_type in
         Create.lambda_sig loc
-          [ Nolabel, runtime_typ ~loc "t" [constructor_type] ]
+          [ Nolabel, [%type: [%t constructor_type] Variantslib.Variant.t ] ]
           (V.to_fun_type v ~rhs:result_type)
       in
       label_arg loc v.V.name variant
@@ -202,7 +194,7 @@ module Gen_sig = struct
         let constructor_type = V.to_fun_type v ~rhs:variant_type in
         let name = variant_name_to_string v.V.name in
         ( val_ ~loc name constructor_type
-        , val_ ~loc name (runtime_typ ~loc "t" [constructor_type])
+        , val_ ~loc name [%type: [%t constructor_type] Variantslib.Variant.t]
         )))
     in
     constructors @
@@ -271,14 +263,16 @@ module Gen_str = struct
              ]
          in
          let variant =
-           pexp_record ~loc
-             [ runtime_loc_ident ~loc "name",        estring ~loc v.V.name
-             ; Located.lident    ~loc "rank",        eint    ~loc rank
-             ; Located.lident    ~loc "constructor", evar    ~loc uncapitalized
-             ] None
+           [%stri
+             let [%p pvar ~loc uncapitalized] =
+               { Variantslib.Variant.
+                 name        = [%e estring ~loc v.V.name     ]
+               ; rank        = [%e eint    ~loc rank         ]
+               ; constructor = [%e evar    ~loc uncapitalized]
+               }
+           ]
          in
-         let variant_binding = [%stri let [%p pvar ~loc uncapitalized] = [%e variant] ] in
-         constructor, variant_binding
+         constructor, variant
        ))
   ;;
 

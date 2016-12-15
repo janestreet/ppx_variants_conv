@@ -1,7 +1,7 @@
 (executables
  ((names (test))
   (libraries (variantslib))
-  (preprocess (((pps (pa_type_conv pa_variants_conv)) All)))))
+  (preprocess (pps (ppx_type_conv ppx_variants_conv)))))
 
 (alias
  ((name DEFAULT)
