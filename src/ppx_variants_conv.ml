@@ -4,14 +4,9 @@
    and more to code that doesn't have them in scope. *)
 
 
-open StdLabels
-open Ppx_core.Std
-open Asttypes
-open Parsetree
+open Ppx_core
 open Ast_builder.Default
 open Ppx_type_conv.Std
-
-[@@@metaloc loc]
 
 let raise_unsupported loc =
   Location.raise_errorf ~loc
@@ -40,9 +35,9 @@ module Variant_constructor = struct
   let args t =
     match t.kind with
     | `Normal pcd_args ->
-      List.mapi pcd_args ~f:(fun i _ -> Nolabel, "v" ^ string_of_int i)
+      List.mapi pcd_args ~f:(fun i _ -> Nolabel, "v" ^ Int.to_string i)
     | `Normal_inline_record fields ->
-      List.mapi fields ~f:(fun i f -> Labelled f.pld_name.txt, "v" ^ string_of_int i)
+      List.mapi fields ~f:(fun i f -> Labelled f.pld_name.txt, "v" ^ Int.to_string i)
     | `Polymorphic None -> []
     | `Polymorphic (Some _) -> [Nolabel, "v0"]
 
@@ -87,7 +82,7 @@ module Inspect = struct
         "ppx_variants_conv: polymorphic variant inclusion is not supported"
 
   let constructor cd : Variant_constructor.t =
-    if cd.pcd_res <> None then
+    if Option.is_some cd.pcd_res then
       Location.raise_errorf ~loc:cd.pcd_loc "GADTs are not supported by variantslib";
     let kind =
       match cd.pcd_args with
@@ -189,7 +184,7 @@ module Gen_sig = struct
 
   let variant ~variant_type ~ty_name loc variants =
     let constructors, variant_defs =
-      List.split (List.map variants ~f:(fun v ->
+      List.unzip (List.map variants ~f:(fun v ->
         let module V = Variant_constructor in
         let constructor_type = V.to_fun_type v ~rhs:variant_type in
         let name = variant_name_to_string v.V.name in
@@ -220,9 +215,11 @@ module Gen_sig = struct
     variant ~variant_type ~ty_name loc (Inspect.type_decl td)
 
   let generate ~loc ~path:_ (rec_flag, tds) =
-    if rec_flag = Nonrecursive then
-      Location.raise_errorf ~loc
-        "nonrec is not compatible with the `ppx_variants_conv' preprocessor";
+    (match rec_flag with
+     | Nonrecursive ->
+       Location.raise_errorf ~loc
+         "nonrec is not compatible with the `ppx_variants_conv' preprocessor"
+     | _ -> ());
     match tds with
     | [td] -> variants_of_td td
     | _ -> Location.raise_errorf ~loc "ppx_variants_conv: not supported"
@@ -232,7 +229,7 @@ module Gen_str = struct
 
   let constructors_and_variants loc variants =
     let module V = Variant_constructor in
-    List.split
+    List.unzip
       (List.mapi variants ~f:(fun rank v ->
          let uncapitalized = variant_name_to_string v.V.name in
          let constructor =
@@ -247,7 +244,7 @@ module Gen_str = struct
              | `Normal_inline_record fields ->
                let arg =
                pexp_record ~loc
-                 (List.map2 fields (V.args v) ~f:(fun f (_,name) ->
+                 (List.map2_exn fields (V.args v) ~f:(fun f (_,name) ->
                     Located.lident ~loc f.pld_name.txt, evar ~loc name))
                  None
                in
@@ -293,7 +290,7 @@ module Gen_str = struct
     let module V = Variant_constructor in
     let variant_fold acc_expr variant =
       let variant_name = variant_name_to_string variant.V.name in
-      [%expr  [%e evar ~loc @@ variant_name ^ "_fun__" ] [%e acc_expr]
+      [%expr  [%e evar ~loc (variant_name ^ "_fun__")] [%e acc_expr]
                 [%e evar ~loc variant_name]
       ]
     in
@@ -314,7 +311,7 @@ module Gen_str = struct
     let f v =
       [%expr
         ( [%e estring ~loc v.V.name]
-        , [%e eint ~loc @@ List.length (V.args v)]
+        , [%e eint ~loc (List.length (V.args v))]
         )
       ]
     in
@@ -336,7 +333,7 @@ module Gen_str = struct
         | `Normal_inline_record fields ->
           let arg =
             ppat_record ~loc
-              (List.map2 fields (V.args variant)
+              (List.map2_exn fields (V.args variant)
                  ~f:(fun f (_,v) -> Located.lident ~loc f.pld_name.txt, pvar ~loc v))
               Closed
           in
@@ -345,7 +342,7 @@ module Gen_str = struct
       let uncapitalized = variant_name_to_string variant.V.name in
       let value =
         List.fold_left (V.args variant)
-          ~init:(eapply ~loc (evar ~loc @@ uncapitalized ^ "_fun__") [evar ~loc uncapitalized])
+          ~init:(eapply ~loc (evar ~loc (uncapitalized ^ "_fun__")) [evar ~loc uncapitalized])
           ~f:(fun acc_expr (label, var) -> pexp_apply ~loc acc_expr [label, evar ~loc var])
       in
       case ~guard:None ~lhs:pattern ~rhs:value
@@ -364,7 +361,7 @@ module Gen_str = struct
     let names = List.map variants ~f:(fun v -> variant_name_to_string v.V.name) in
     let variant_iter variant =
       let variant_name = variant_name_to_string variant.V.name in
-      [%expr ([%e evar ~loc @@ variant_name ^ "_fun__"] [%e evar ~loc variant_name] : unit) ]
+      [%expr ([%e evar ~loc (variant_name ^ "_fun__")] [%e evar ~loc variant_name] : unit) ]
     in
     let body = esequence ~loc (List.map variants ~f:variant_iter) in
     let patterns = List.map names ~f:(label_arg_fun loc) in
@@ -421,9 +418,11 @@ module Gen_str = struct
     variant ~variant_name loc (Inspect.type_decl td)
 
   let generate ~loc ~path:_ (rec_flag, tds) =
-    if rec_flag = Nonrecursive then
-      Location.raise_errorf ~loc
-        "nonrec is not compatible with the `ppx_variants_conv' preprocessor";
+    (match rec_flag with
+     | Nonrecursive ->
+       Location.raise_errorf ~loc
+         "nonrec is not compatible with the `ppx_variants_conv' preprocessor"
+     | _ -> ());
     match tds with
     | [td] -> variants_of_td td
     | _ -> Location.raise_errorf ~loc "ppx_variants_conv: not supported"
