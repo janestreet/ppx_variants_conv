@@ -1,4 +1,2 @@
-(toplevel_expect_tests
- ((libraries (variantslib ppx_variants_conv))))
 
 (jbuild_version jane_street)
