@@ -1,7 +1,7 @@
 (executables
  ((names (test))
   (libraries (variantslib))
-  (preprocess (pps (ppx_type_conv ppx_variants_conv)))))
+  (preprocess (pps (ppx_type_conv ppx_variants_conv ppx_driver.runner)))))
 
 (alias
  ((name DEFAULT)

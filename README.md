@@ -1,3 +1,8 @@
+---
+title: ppx_variants_conv
+parent: ../README.md
+---
+
 Generation of accessor and iteration functions for ocaml variant types.
 
 `ppx_variants_conv` is a ppx rewriter that can be used to define first
