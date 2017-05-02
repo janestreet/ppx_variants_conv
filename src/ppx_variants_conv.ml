@@ -428,9 +428,8 @@ module Gen_str = struct
     | _ -> Location.raise_errorf ~loc "ppx_variants_conv: not supported"
 end
 
-let () =
+let variants =
   Type_conv.add "variants"
     ~str_type_decl:(Type_conv.Generator.make_noarg Gen_str.generate)
     ~sig_type_decl:(Type_conv.Generator.make_noarg Gen_sig.generate)
-  |> Type_conv.ignore;
 ;;
