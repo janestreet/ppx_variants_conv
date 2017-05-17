@@ -101,23 +101,23 @@ module Poly :
 type fail1 = [ Poly.t | `Blah ] [@@deriving variants]
 [%%expect{|
 Line _, characters 0-53:
-ppx_variants_conv: polymorphic variant inclusion is not supported
+Error: ppx_variants_conv: polymorphic variant inclusion is not supported
 |}];;
 
 type fail2 = [> `Foo | `Bar ] [@@deriving variants]
 [%%expect{|
 Line _, characters 13-29:
-ppx_variants_conv: polymorphic variants with a row variable are not supported
+Error: ppx_variants_conv: polymorphic variants with a row variable are not supported
 |}];;
 
 type fail3 = [< `Foo | `Bar ] [@@deriving variants]
 [%%expect{|
 Line _, characters 13-29:
-ppx_variants_conv: polymorphic variants with a row variable are not supported
+Error: ppx_variants_conv: polymorphic variants with a row variable are not supported
 |}];;
 
 type fail4 = [< `Foo | `Bar > `Foo ] [@@deriving variants]
 [%%expect{|
 Line _, characters 13-36:
-ppx_variants_conv: polymorphic variants with a row variable are not supported
+Error: ppx_variants_conv: polymorphic variants with a row variable are not supported
 |}];;
