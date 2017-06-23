@@ -243,10 +243,10 @@ module Gen_str = struct
                pexp_variant   ~loc                  v.V.name  arg
              | `Normal_inline_record fields ->
                let arg =
-               pexp_record ~loc
-                 (List.map2_exn fields (V.args v) ~f:(fun f (_,name) ->
-                    Located.lident ~loc f.pld_name.txt, evar ~loc name))
-                 None
+                 pexp_record ~loc
+                   (List.map2_exn fields (V.args v) ~f:(fun f (_,name) ->
+                      Located.lident ~loc f.pld_name.txt, evar ~loc name))
+                   None
                in
                pexp_construct ~loc (Located.lident ~loc v.V.name) (Some arg)
            in
