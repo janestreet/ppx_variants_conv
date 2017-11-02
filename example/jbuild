@@ -1,5 +1,6 @@
 (executables
  ((names (test))
+  (flags (:standard -safe-string))
   (libraries (variantslib))
   (preprocess (pps (ppx_type_conv ppx_variants_conv ppx_driver.runner)))))
 
