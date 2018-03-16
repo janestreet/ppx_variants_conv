@@ -4,9 +4,9 @@
    and more to code that doesn't have them in scope. *)
 
 
-open Ppx_core
+open Base
+open Ppxlib
 open Ast_builder.Default
-open Ppx_type_conv.Std
 
 let raise_unsupported loc =
   Location.raise_errorf ~loc
@@ -429,7 +429,7 @@ module Gen_str = struct
 end
 
 let variants =
-  Type_conv.add "variants"
-    ~str_type_decl:(Type_conv.Generator.make_noarg Gen_str.generate)
-    ~sig_type_decl:(Type_conv.Generator.make_noarg Gen_sig.generate)
+  Deriving.add "variants"
+    ~str_type_decl:(Deriving.Generator.make_noarg Gen_str.generate)
+    ~sig_type_decl:(Deriving.Generator.make_noarg Gen_sig.generate)
 ;;
