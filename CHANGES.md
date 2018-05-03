@@ -1,3 +1,7 @@
+## v0.11.1
+
+- Update for AST 4.06
+
 ## v0.11
 
 - Depend on ppxlib instead of (now deprecated) ppx\_core, ppx\_driver and
