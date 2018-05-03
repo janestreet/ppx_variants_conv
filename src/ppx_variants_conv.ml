@@ -67,12 +67,12 @@ end
 module Inspect = struct
   let row_field loc rf : Variant_constructor.t =
     match rf with
-    | Rtag (name, _, true, _) | Rtag (name, _, _, []) ->
+    | Rtag ({ txt = name; _ }, _, true, _) | Rtag ({ txt = name; _ }, _, _, []) ->
       { name
       ; loc
       ; kind = `Polymorphic None
       }
-    | Rtag (name, _, false, tp :: _) ->
+    | Rtag ({ txt = name; _}, _, false, tp :: _) ->
       { name
       ; loc
       ; kind = `Polymorphic (Some tp)
