@@ -115,9 +115,10 @@ let variants_module = function
 ;;
 
 let variant_name_to_string v =
-  match String.lowercase v with
-  | "try" -> "try_"
-  | s -> s
+  let s = String.lowercase v in
+  if Caml.Hashtbl.mem Lexer.keyword_table s
+  then s ^ "_"
+  else s
 
 module Gen_sig = struct
   let apply_type loc ~ty_name ~tps =

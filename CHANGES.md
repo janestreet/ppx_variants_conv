@@ -1,3 +1,9 @@
+## git version
+
+- Make sure we don't generate functions whose name matches a keyword, e.g. when
+  doing `type t = If | Then | Else [@@deriving variants]`. We suffix such
+  function names with an underscore.
+
 ## v0.11
 
 - Depend on ppxlib instead of (now deprecated) ppx\_core, ppx\_driver and

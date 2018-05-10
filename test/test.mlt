@@ -3,30 +3,34 @@ open Variantslib
 #verbose true;;
 
 module Normal = struct
-  type t =  Foo of int | Bar [@@deriving variants]
+  type t = Foo of int | Bar | Exception [@@deriving variants]
 end
 
 [%%expect{|
 module Normal :
   sig
-    type t = Foo of int | Bar
+    type t = Foo of int | Bar | Exception
     val foo : int -> t
     val bar : t
+    val exception_ : t
     module Variants :
       sig
         val foo : (int -> t) Variant.t
         val bar : t Variant.t
+        val exception_ : t Variant.t
         val fold :
           init:'a ->
           foo:('a -> (int -> t) Variant.t -> 'b) ->
-          bar:('b -> t Variant.t -> 'c) -> 'c
+          bar:('b -> t Variant.t -> 'c) ->
+          exception_:('c -> t Variant.t -> 'd) -> 'd
         val iter :
           foo:((int -> t) Variant.t -> unit) ->
-          bar:(t Variant.t -> unit) -> unit
+          bar:(t Variant.t -> unit) ->
+          exception_:(t Variant.t -> unit) -> unit
         val map :
           t ->
           foo:((int -> t) Variant.t -> int -> 'a) ->
-          bar:(t Variant.t -> 'a) -> 'a
+          bar:(t Variant.t -> 'a) -> exception_:(t Variant.t -> 'a) -> 'a
         val to_rank : t -> int
         val to_name : t -> string
         val descriptions : (string * int) list
@@ -67,32 +71,37 @@ module Normal_inline_record :
 |}];;
 
 module Poly = struct
-  type t =  [ `Foo of int | `Bar ] [@@deriving variants]
+  type t =  [ `Foo of int | `Bar | `Exception ] [@@deriving variants]
 end
 
 [%%expect{|
 module Poly :
   sig
-    type t = [ `Bar | `Foo of int ]
+    type t = [ `Bar | `Exception | `Foo of int ]
     val foo : 'a -> [> `Foo of 'a ]
     val bar : [> `Bar ]
+    val exception_ : [> `Exception ]
     module Variants :
       sig
         val foo : ('a -> [> `Foo of 'a ]) Variant.t
         val bar : [> `Bar ] Variant.t
+        val exception_ : [> `Exception ] Variant.t
         val fold :
           init:'a ->
           foo:('a -> ('b -> [> `Foo of 'b ]) Variant.t -> 'c) ->
-          bar:('c -> [> `Bar ] Variant.t -> 'd) -> 'd
+          bar:('c -> [> `Bar ] Variant.t -> 'd) ->
+          exception_:('d -> [> `Exception ] Variant.t -> 'e) -> 'e
         val iter :
           foo:(('a -> [> `Foo of 'a ]) Variant.t -> unit) ->
-          bar:([> `Bar ] Variant.t -> unit) -> unit
+          bar:([> `Bar ] Variant.t -> unit) ->
+          exception_:([> `Exception ] Variant.t -> unit) -> unit
         val map :
-          [< `Bar | `Foo of 'a ] ->
+          [< `Bar | `Exception | `Foo of 'a ] ->
           foo:(('b -> [> `Foo of 'b ]) Variant.t -> 'a -> 'c) ->
-          bar:([> `Bar ] Variant.t -> 'c) -> 'c
-        val to_rank : [< `Bar | `Foo of 'a ] -> int
-        val to_name : [< `Bar | `Foo of 'a ] -> string
+          bar:([> `Bar ] Variant.t -> 'c) ->
+          exception_:([> `Exception ] Variant.t -> 'c) -> 'c
+        val to_rank : [< `Bar | `Exception | `Foo of 'a ] -> int
+        val to_name : [< `Bar | `Exception | `Foo of 'a ] -> string
         val descriptions : (string * int) list
       end
   end
