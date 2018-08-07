@@ -64,6 +64,14 @@ module Variants : sig
     -> d: ((int -> int -> 'a t) Variant.t -> int -> int -> 'a t -> 'r)
     -> 'r
 
+  val make_matcher :
+       a:(('a -> 'a t)         Variant.t -> 'b -> ('c -> 'd)         * 'e)
+    -> b:((char -> 'f t)       Variant.t -> 'e -> (char -> 'd)       * 'g)
+    -> c:('h t                 Variant.t -> 'g -> (unit -> 'd)       * 'i)
+    -> d:((int -> int -> 'j t) Variant.t -> 'i -> (int -> int -> 'd) * 'k)
+    -> 'b
+    -> ('c t -> 'd) * 'k
+
   val to_rank : _ t -> int
   val to_name : _ t -> string
 

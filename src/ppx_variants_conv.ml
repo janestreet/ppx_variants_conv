@@ -172,6 +172,26 @@ module Gen_sig = struct
     val_ ~loc "map" t
   ;;
 
+  let v_make_matcher_fun ~variant_type loc variants =
+    let result_type = [%type:  'result__ ] in
+    let acc i = ptyp_var ~loc ("acc__" ^ Int.to_string i) in
+    let f i v =
+      let variant =
+        [%type: [%t Variant_constructor.to_fun_type v ~rhs:variant_type] Variantslib.Variant.t]
+      in
+      let fun_type =
+        match Variant_constructor.args v with
+        | [] -> [%type: unit -> [%t result_type]]
+        | ( _::_ ) -> Variant_constructor.to_fun_type v ~rhs:result_type
+      in
+      label_arg loc v.name [%type: [%t variant] -> [%t acc i] -> [%t fun_type] * [%t acc (i+1)]]
+    in
+    let types = List.mapi variants ~f in
+    let t = Create.lambda_sig loc (types @ [Nolabel, acc 0])
+              [%type: ([%t variant_type] -> [%t result_type]) * [%t (acc (List.length variants))]] in
+    val_ ~loc "make_matcher" t
+  ;;
+
   let v_descriptions ~variant_type:_ loc _ =
     val_ ~loc "descriptions" [%type: (string * int) list]
 
@@ -202,6 +222,7 @@ module Gen_sig = struct
                      (variant_defs @ [ v_fold_fun ~variant_type loc variants
                                      ; v_iter_fun ~variant_type loc variants
                                      ; v_map_fun ~variant_type loc variants
+                                     ; v_make_matcher_fun ~variant_type loc variants
                                      ; v_to_rank_fun ~variant_type loc variants
                                      ; v_to_name_fun ~variant_type loc variants
                                      ; v_descriptions ~variant_type loc variants
@@ -370,6 +391,46 @@ module Gen_str = struct
     [%stri let iter = [%e lambda] ]
   ;;
 
+  let v_make_matcher_fun loc variants =
+    let module V = Variant_constructor in
+    let result =
+      let map =
+        List.fold_left variants
+          ~init:[%expr map]
+          ~f:(fun acc variant ->
+          let variant_name = variant_name_to_string variant.V.name in
+          pexp_apply ~loc acc
+            [Labelled variant_name,
+             match V.args variant with
+             | [] -> [%expr fun _ -> [%e evar ~loc (variant_name ^ "_gen__")] ()]
+             | (_::_) ->
+               [%expr fun _ ->
+                 [%e evar ~loc (variant_name ^ "_gen__")]]])
+      in
+      [%expr [%e map], compile_acc__]
+    in
+    let body =
+      List.fold_right variants
+        ~init:result
+        ~f:(fun variant acc ->
+          let variant_name = variant_name_to_string variant.V.name in
+          pexp_let ~loc Nonrecursive [
+            value_binding ~loc
+              ~pat:(ppat_tuple ~loc [
+                [%pat? [%p pvar ~loc (variant_name ^ "_gen__")]];
+                [%pat? compile_acc__];
+              ])
+              ~expr:[%expr
+                [%e evar ~loc (variant_name ^ "_fun__")]
+                  [%e evar ~loc variant_name]
+                  compile_acc__]
+          ] acc)
+    in
+    let patterns = List.map variants ~f:(fun v -> label_arg_fun loc (variant_name_to_string v.V.name)) in
+    let lambda = Create.lambda loc (patterns @ [ Nolabel, [%pat? compile_acc__ ]]) body in
+    [%stri let make_matcher = [%e lambda] ]
+  ;;
+
   let case_analysis_ignoring_values variants ~f =
     let pattern_and_rhs =
       List.mapi variants ~f:(fun rank v ->
@@ -406,6 +467,7 @@ module Gen_str = struct
                     (variants @ [ v_fold_fun loc ty
                                 ; v_iter_fun loc ty
                                 ; v_map_fun loc ty
+                                ; v_make_matcher_fun loc ty
                                 ; v_to_rank loc ty
                                 ; v_to_name loc ty
                                 ; v_descriptions loc ty
