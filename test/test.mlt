@@ -164,6 +164,43 @@ module Poly :
   end
 |}];;
 
+module Wildcard : sig
+  type _ t = A | B [@@deriving variants]
+end = struct
+  type _ t = A | B [@@deriving variants]
+end
+
+[%%expect{|
+module Wildcard :
+  sig
+    type _ t = A | B
+    val a : 'a t
+    val b : 'a t
+    module Variants :
+      sig
+        val a : 'a t Variant.t
+        val b : 'a t Variant.t
+        val fold :
+          init:'acc__ ->
+          a:('acc__ -> 'a t Variant.t -> 'acc__) ->
+          b:('acc__ -> 'b t Variant.t -> 'acc__) -> 'acc__
+        val iter :
+          a:('a t Variant.t -> unit) -> b:('b t Variant.t -> unit) -> unit
+        val map :
+          'a t ->
+          a:('b t Variant.t -> 'result__) ->
+          b:('c t Variant.t -> 'result__) -> 'result__
+        val make_matcher :
+          a:('a t Variant.t -> 'acc__0 -> (unit -> 'result__) * 'acc__1) ->
+          b:('b t Variant.t -> 'acc__1 -> (unit -> 'result__) * 'acc__2) ->
+          'acc__0 -> ('c t -> 'result__) * 'acc__2
+        val to_rank : 'a t -> int
+        val to_name : 'a t -> string
+        val descriptions : (string * int) list
+      end
+  end
+|}];;
+
 type fail1 = [ Poly.t | `Blah ] [@@deriving variants]
 [%%expect{|
 Line _, characters 0-53:
