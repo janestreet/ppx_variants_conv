@@ -64,6 +64,12 @@ module Variant_constructor = struct
     Create.lambda_sig t.loc arg_types body_ty
 end
 
+let variant_name_to_string v =
+  let s = String.lowercase v in
+  if Caml.Hashtbl.mem Lexer.keyword_table s
+  then s ^ "_"
+  else s
+
 module Inspect = struct
   let row_field loc rf : Variant_constructor.t =
     match rf with
@@ -97,7 +103,19 @@ module Inspect = struct
   let type_decl td =
     let loc = td.ptype_loc in
     match td.ptype_kind with
-    | Ptype_variant cds -> List.map cds ~f:constructor
+    | Ptype_variant cds ->
+      let cds = List.map cds ~f:constructor in
+      let names_as_string = Hashtbl.create (module String) in
+      List.iter cds ~f:(fun { name; loc; _ } ->
+        let s = variant_name_to_string name in
+        match Hashtbl.find names_as_string s with
+        | None -> Hashtbl.add_exn names_as_string ~key:s ~data:name
+        | Some name' ->
+          Location.raise_errorf ~loc
+            "ppx_variants_conv: constructors %S and %S both get mapped to value %S"
+            name name' s
+      );
+      cds
     | Ptype_record _ | Ptype_open -> raise_unsupported loc
     | Ptype_abstract ->
       match td.ptype_manifest with
@@ -113,12 +131,6 @@ let variants_module = function
   | "t" -> "Variants"
   | type_name -> "Variants_of_" ^ type_name
 ;;
-
-let variant_name_to_string v =
-  let s = String.lowercase v in
-  if Caml.Hashtbl.mem Lexer.keyword_table s
-  then s ^ "_"
-  else s
 
 module Gen_sig = struct
   let apply_type loc ~ty_name ~tps =
