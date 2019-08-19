@@ -72,13 +72,13 @@ let variant_name_to_string v =
 
 module Inspect = struct
   let row_field loc rf : Variant_constructor.t =
-    match rf with
-    | Rtag ({ txt = name; _ }, _, true, _) | Rtag ({ txt = name; _ }, _, _, []) ->
+    match rf.prf_desc with
+    | Rtag ({ txt = name; _ }, true, _) | Rtag ({ txt = name; _ }, _, []) ->
       { name
       ; loc
       ; kind = `Polymorphic None
       }
-    | Rtag ({ txt = name; _}, _, false, tp :: _) ->
+    | Rtag ({ txt = name; _}, false, tp :: _) ->
       { name
       ; loc
       ; kind = `Polymorphic (Some tp)
