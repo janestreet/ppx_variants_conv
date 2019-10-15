@@ -203,24 +203,24 @@ module Wildcard :
 
 type fail1 = [ Poly.t | `Blah ] [@@deriving variants]
 [%%expect{|
-Line _, characters 0-53:
+Line _, characters _-_:
 Error: ppx_variants_conv: polymorphic variant inclusion is not supported
 |}];;
 
 type fail2 = [> `Foo | `Bar ] [@@deriving variants]
 [%%expect{|
-Line _, characters 13-29:
+Line _, characters _-_:
 Error: ppx_variants_conv: polymorphic variants with a row variable are not supported
 |}];;
 
 type fail3 = [< `Foo | `Bar ] [@@deriving variants]
 [%%expect{|
-Line _, characters 13-29:
+Line _, characters _-_:
 Error: ppx_variants_conv: polymorphic variants with a row variable are not supported
 |}];;
 
 type fail4 = [< `Foo | `Bar > `Foo ] [@@deriving variants]
 [%%expect{|
-Line _, characters 13-36:
+Line _, characters _-_:
 Error: ppx_variants_conv: polymorphic variants with a row variable are not supported
 |}];;
