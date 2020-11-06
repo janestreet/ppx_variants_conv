@@ -410,14 +410,14 @@ module Gen_str = struct
         List.fold_left variants
           ~init:[%expr map]
           ~f:(fun acc variant ->
-          let variant_name = variant_name_to_string variant.V.name in
-          pexp_apply ~loc acc
-            [Labelled variant_name,
-             match V.args variant with
-             | [] -> [%expr fun _ -> [%e evar ~loc (variant_name ^ "_gen__")] ()]
-             | (_::_) ->
-               [%expr fun _ ->
-                 [%e evar ~loc (variant_name ^ "_gen__")]]])
+            let variant_name = variant_name_to_string variant.V.name in
+            pexp_apply ~loc acc
+              [Labelled variant_name,
+               match V.args variant with
+               | [] -> [%expr fun _ -> [%e evar ~loc (variant_name ^ "_gen__")] ()]
+               | (_::_) ->
+                 [%expr fun _ ->
+                   [%e evar ~loc (variant_name ^ "_gen__")]]])
       in
       [%expr [%e map], compile_acc__]
     in

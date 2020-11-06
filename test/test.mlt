@@ -1,5 +1,5 @@
 open Variantslib
-
+;;
 #verbose true;;
 
 module Normal = struct
