@@ -34,6 +34,11 @@ val b : char -> 'a t
 val c : 'a t
 val d : int -> int -> 'a t
 
+val is_a : _ t -> bool
+val is_b : _ t -> bool
+val is_c : _ t -> bool
+val is_d : _ t -> bool
+
 (** higher order variants and functions over all variants *)
 module Variants : sig
   val a : ('a -> 'a t)         Variant.t

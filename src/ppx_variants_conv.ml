@@ -215,17 +215,22 @@ module Gen_sig = struct
     val_ ~loc "to_name" [%type: [%t variant_type] -> string]
   ;;
 
+
   let variant ~variant_type ~ty_name loc variants =
-    let constructors, variant_defs =
-      List.unzip (List.map variants ~f:(fun v ->
+    let tester_type =
+      [%type: ([%t variant_type] -> bool)]
+    in
+    let constructors, testers, variant_defs =
+      List.unzip3 (List.map variants ~f:(fun v ->
         let module V = Variant_constructor in
         let constructor_type = V.to_fun_type v ~rhs:variant_type in
         let name = variant_name_to_string v.V.name in
         ( val_ ~loc name constructor_type
+        , val_ ~loc ( "is_" ^ name) tester_type
         , val_ ~loc name [%type: [%t constructor_type] Variantslib.Variant.t]
         )))
     in
-    constructors @
+    constructors @ testers @
     [ psig_module ~loc
         (module_declaration
            ~loc
@@ -261,9 +266,10 @@ end
 
 module Gen_str = struct
 
-  let constructors_and_variants loc variants =
+  let constructors_testers_and_variants loc variants =
+    let multiple_cases = List.length variants > 1 in
     let module V = Variant_constructor in
-    List.unzip
+    List.unzip3
       (List.mapi variants ~f:(fun rank v ->
          let uncapitalized = variant_name_to_string v.V.name in
          let constructor =
@@ -303,7 +309,20 @@ module Gen_str = struct
                }
            ]
          in
-         constructor, variant
+         let tester =
+           let name = ("is_" ^ uncapitalized) in
+           let true_case =
+             case  ~guard:None ~lhs:(Variant_constructor.pattern_without_binding v) ~rhs:[%expr true]
+           in
+           let cases =
+             if multiple_cases then
+               [true_case
+               ; case ~guard:None ~lhs:[%pat? _] ~rhs:[%expr false] ]
+             else [true_case]
+           in
+           [%stri let [%p pvar ~loc name]  = [%e pexp_function ~loc cases]]
+         in
+         constructor, tester, variant
        ))
   ;;
 
@@ -469,8 +488,8 @@ module Gen_str = struct
   ;;
 
   let variant ~variant_name loc ty =
-    let constructors, variants = constructors_and_variants loc ty in
-    constructors @
+    let constructors, testers, variants = constructors_testers_and_variants loc ty in
+    constructors @ testers @
     [ pstr_module ~loc
         (module_binding
            ~loc
