@@ -4,7 +4,8 @@ ppx_variants_conv
 Generation of accessor and iteration functions for ocaml variant types.
 
 `ppx_variants_conv` is a ppx rewriter that can be used to define first
-class values representing variant constructors, and additional
+class values representing variant constructors, some helper functions
+to identify or match on individual constructors, and additional
 routines to fold, iterate and map over all constructors of a variant
 type.
 
@@ -38,6 +39,11 @@ val is_a : _ t -> bool
 val is_b : _ t -> bool
 val is_c : _ t -> bool
 val is_d : _ t -> bool
+
+val a_val : 'a t -> 'a option
+val b_val : _ t -> char option
+val c_val : _ t -> unit option
+val d_val : _ t -> (int * int) option
 
 (** higher order variants and functions over all variants *)
 module Variants : sig
