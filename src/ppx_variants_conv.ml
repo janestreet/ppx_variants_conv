@@ -123,7 +123,7 @@ end
 
 let variant_name_to_string v =
   let s = String.lowercase v in
-  if Stdlib.Hashtbl.mem Lexer.keyword_table s
+  if Keyword.is_keyword s
   then s ^ "_"
   else s
 
