@@ -383,20 +383,10 @@ module Gen_str = struct
         let match_fun ~name ~true_case ~false_expr =
           let cases =
             if multiple_cases
-            then
-              let others = List.filter variants ~f:(fun x -> not(String.equal x.name v.name)) in
-              let false_pattern =
-                List.fold_left
-                  (List.tl_exn others)
-                  ~init:(Variant_constructor.to_getter_case (List.hd_exn others) |> fst)
-                  ~f:(fun acc x ->
-                    let pat' = fst(Variant_constructor.to_getter_case x) in
-                    [%pat? [%p acc] | [%p pat']])
-              in
-              [ true_case; case ~guard:None ~lhs:false_pattern ~rhs:false_expr ]
+            then [ true_case; case ~guard:None ~lhs:[%pat? _] ~rhs:false_expr ]
             else [ true_case ]
           in
-          [%stri let [%p pvar ~loc name] = [%e pexp_function ~loc cases]]
+          [%stri let [%p pvar ~loc name] = [%e pexp_function ~loc cases] [@@warning "-4"]]
         in
         let tester =
           let name = "is_" ^ uncapitalized in
