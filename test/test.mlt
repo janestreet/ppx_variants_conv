@@ -2,6 +2,9 @@ open Variantslib
 ;;
 #verbose true;;
 
+(* to ensure we do not generate such warning *)
+[@@@ocaml.warning "+4"];;
+
 module Normal = struct
   type t = Foo of int | Bar | Exception [@@deriving variants]
 end
