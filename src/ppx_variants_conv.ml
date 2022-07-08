@@ -386,7 +386,7 @@ module Gen_str = struct
             then [ true_case; case ~guard:None ~lhs:[%pat? _] ~rhs:false_expr ]
             else [ true_case ]
           in
-          [%stri let [%p pvar ~loc name] = [%e pexp_function ~loc cases]]
+          [%stri let [%p pvar ~loc name] = [%e pexp_function ~loc cases] [@@warning "-4"]]
         in
         let tester =
           let name = "is_" ^ uncapitalized in
