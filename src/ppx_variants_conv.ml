@@ -525,7 +525,7 @@ module Gen_str = struct
                  so we repeat ourselves here rather than use [locally_abstract_match] *)
               [%stri let [%p pvar ~loc name] =  
                 [%e body] 
-                [@@warning "-4"]
+                [@@warning "-4-56"]
               ]
           else
             [%stri let [%p pvar ~loc name] = 
