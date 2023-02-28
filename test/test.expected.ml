@@ -343,36 +343,36 @@ module Wildcard :
       | B [@@deriving variants]
     include
       sig
-        val a : 'a t
-        val b : 'a t
-        val is_a : 'a t -> bool
-        val is_b : 'a t -> bool
-        val a_val : 'a t -> unit option
-        val b_val : 'a t -> unit option
+        val a : _ t
+        val b : _ t
+        val is_a : _ t -> bool
+        val is_b : _ t -> bool
+        val a_val : _ t -> unit option
+        val b_val : _ t -> unit option
         module Variants :
         sig
-          val a : 'a t Variantslib.Variant.t
-          val b : 'a t Variantslib.Variant.t
+          val a : _ t Variantslib.Variant.t
+          val b : _ t Variantslib.Variant.t
           val fold :
             init:'acc__ ->
-              a:('acc__ -> 'a t Variantslib.Variant.t -> 'acc__) ->
-                b:('acc__ -> 'a t Variantslib.Variant.t -> 'acc__) -> 'acc__
+              a:('acc__ -> _ t Variantslib.Variant.t -> 'acc__) ->
+                b:('acc__ -> _ t Variantslib.Variant.t -> 'acc__) -> 'acc__
           val iter :
-            a:('a t Variantslib.Variant.t -> unit) ->
-              b:('a t Variantslib.Variant.t -> unit) -> unit
+            a:(_ t Variantslib.Variant.t -> unit) ->
+              b:(_ t Variantslib.Variant.t -> unit) -> unit
           val map :
-            'a t ->
-              a:('a t Variantslib.Variant.t -> 'result__) ->
-                b:('a t Variantslib.Variant.t -> 'result__) -> 'result__
+            _ t ->
+              a:(_ t Variantslib.Variant.t -> 'result__) ->
+                b:(_ t Variantslib.Variant.t -> 'result__) -> 'result__
           val make_matcher :
-            a:('a t Variantslib.Variant.t ->
+            a:(_ t Variantslib.Variant.t ->
                  'acc__0 -> ((unit -> 'result__) * 'acc__1))
               ->
-              b:('a t Variantslib.Variant.t ->
+              b:(_ t Variantslib.Variant.t ->
                    'acc__1 -> ((unit -> 'result__) * 'acc__2))
-                -> 'acc__0 -> (('a t -> 'result__) * 'acc__2)
-          val to_rank : 'a t -> int
-          val to_name : 'a t -> string
+                -> 'acc__0 -> ((_ t -> 'result__) * 'acc__2)
+          val to_rank : _ t -> int
+          val to_name : _ t -> string
           val descriptions : (string * int) list
         end
       end[@@ocaml.doc "@inline"][@@merlin.hide ]
@@ -421,175 +421,50 @@ module Gadt :
     type _ t =
       | Bool: bool -> bool t 
       | Int: int -> int t 
-      | Cond: bool t * 'a t * 'a t -> 'a t [@@deriving variants]
-    include
-      sig
-        val bool : bool -> bool t
-        val int : int -> int t
-        val cond : bool t -> 'a t -> 'a t -> 'a t
-        val is_bool : 'a t -> bool
-        val is_int : 'a t -> bool
-        val is_cond : 'a t -> bool
-        val bool_val : 'a t -> bool option
-        val int_val : 'a t -> int option
-        val cond_val : 'a t -> (bool t * 'a t * 'a t) option
-        module Variants :
-        sig
-          val bool : (bool -> bool t) Variantslib.Variant.t
-          val int : (int -> int t) Variantslib.Variant.t
-          val cond : (bool t -> 'a t -> 'a t -> 'a t) Variantslib.Variant.t
-          val fold :
-            init:'acc__ ->
-              bool:('acc__ ->
-                      (bool -> bool t) Variantslib.Variant.t -> 'acc__)
-                ->
-                int:('acc__ -> (int -> int t) Variantslib.Variant.t -> 'acc__)
-                  ->
-                  cond:('acc__ ->
-                          (bool t -> 'a t -> 'a t -> 'a t)
-                            Variantslib.Variant.t -> 'acc__)
-                    -> 'acc__
-          val iter :
-            bool:((bool -> bool t) Variantslib.Variant.t -> unit) ->
-              int:((int -> int t) Variantslib.Variant.t -> unit) ->
-                cond:((bool t -> 'a t -> 'a t -> 'a t) Variantslib.Variant.t
-                        -> unit)
-                  -> unit
-          val map :
-            'a t ->
-              bool:((bool -> bool t) Variantslib.Variant.t ->
-                      bool -> 'result__)
-                ->
-                int:((int -> int t) Variantslib.Variant.t -> int -> 'result__)
-                  ->
-                  cond:((bool t -> 'a t -> 'a t -> 'a t)
-                          Variantslib.Variant.t ->
-                          bool t -> 'a t -> 'a t -> 'result__)
-                    -> 'result__
-          val make_matcher :
-            bool:((bool -> bool t) Variantslib.Variant.t ->
-                    'acc__0 -> ((bool -> 'result__) * 'acc__1))
-              ->
-              int:((int -> int t) Variantslib.Variant.t ->
-                     'acc__1 -> ((int -> 'result__) * 'acc__2))
-                ->
-                cond:((bool t -> 'a t -> 'a t -> 'a t) Variantslib.Variant.t
-                        ->
-                        'acc__2 ->
-                          ((bool t -> 'a t -> 'a t -> 'result__) * 'acc__3))
-                  -> 'acc__0 -> (('a t -> 'result__) * 'acc__3)
-          val to_rank : 'a t -> int
-          val to_name : 'a t -> string
-          val descriptions : (string * int) list
-        end
-      end[@@ocaml.doc "@inline"][@@merlin.hide ]
-  end =
-  struct
-    type _ t =
-      | Bool: bool -> bool t 
-      | Int: int -> int t 
-      | Cond: bool t * 'a t * 'a t -> 'a t [@@deriving variants]
-    include
-      struct
-        let bool v0 = Bool v0
-        let int v0 = Int v0
-        let cond v0 v1 v2 = Cond (v0, v1, v2)
-        let is_bool (type a) (t : a t) =
-          match t with | Bool _ -> true | _ -> false[@@warning "-4"]
-        let is_int (type a) (t : a t) =
-          match t with | Int _ -> true | _ -> false[@@warning "-4"]
-        let is_cond (type a) (t : a t) =
-          match t with | Cond _ -> true | _ -> false[@@warning "-4"]
-        let bool_val (type a) (t : a t) =
-          match t with
-          | Bool v0 -> Stdlib.Option.Some v0
-          | _ -> Stdlib.Option.None[@@warning "-4"]
-        let int_val (type a) (t : a t) =
-          match t with
-          | Int v0 -> Stdlib.Option.Some v0
-          | _ -> Stdlib.Option.None[@@warning "-4"]
-        let cond_val (type a) (t : a t) =
-          match t with
-          | Cond (v0, v1, v2) -> Stdlib.Option.Some (v0, v1, v2)
-          | _ -> Stdlib.Option.None[@@warning "-4"]
-        module Variants =
-          struct
-            let bool =
-              {
-                Variantslib.Variant.name = "Bool";
-                rank = 0;
-                constructor = bool
-              }
-            let int =
-              { Variantslib.Variant.name = "Int"; rank = 1; constructor = int
-              }
-            let cond =
-              {
-                Variantslib.Variant.name = "Cond";
-                rank = 2;
-                constructor = cond
-              }
-            let fold ~init:init__  ~bool:bool_fun__  ~int:int_fun__ 
-              ~cond:cond_fun__  =
-              cond_fun__ (int_fun__ (bool_fun__ init__ bool) int) cond
-            let iter ~bool:bool_fun__  ~int:int_fun__  ~cond:cond_fun__  =
-              (bool_fun__ bool : unit);
-              (int_fun__ int : unit);
-              (cond_fun__ cond : unit)
-            let map (type a) (t__ : a t) ~bool:bool_fun__  ~int:int_fun__ 
-              ~cond:cond_fun__  =
-              match t__ with
-              | Bool v0 -> bool_fun__ bool v0
-              | Int v0 -> int_fun__ int v0
-              | Cond (v0, v1, v2) -> cond_fun__ cond v0 v1 v2
-            let make_matcher ~bool:bool_fun__  ~int:int_fun__ 
-              ~cond:cond_fun__  compile_acc__ =
-              let (bool_gen__, compile_acc__) = bool_fun__ bool compile_acc__ in
-              let (int_gen__, compile_acc__) = int_fun__ int compile_acc__ in
-              let (cond_gen__, compile_acc__) = cond_fun__ cond compile_acc__ in
-              ((map ~bool:(fun _ -> bool_gen__) ~int:(fun _ -> int_gen__)
-                  ~cond:(fun _ -> cond_gen__)), compile_acc__)
-            let to_rank (type a) (t : a t) =
-              match t with | Bool _ -> 0 | Int _ -> 1 | Cond _ -> 2
-            let to_name (type a) (t : a t) =
-              match t with
-              | Bool _ -> "Bool"
-              | Int _ -> "Int"
-              | Cond _ -> "Cond"
-            let descriptions = [("Bool", 1); ("Int", 1); ("Cond", 3)]
-          end
-      end[@@ocaml.doc "@inline"][@@merlin.hide ]
-  end 
-module Gadt_inline_record :
-  sig
-    type _ t =
-      | Bool: bool -> bool t 
-      | Int: int -> int t 
       | Cond: {
       cond: bool t ;
-      true_case: 'a t ;
-      false_case: 'a t } -> 'a t [@@deriving variants]
+      true_branch: 'a t ;
+      false_branch: 'a t } -> 'a t 
+      | Pair: 'a t * 'b t -> ('a * 'b) t 
+      | Swap: ('a * 'b) t -> ('b * 'a) t 
+      | Fst: ('a * 'b) t -> 'a t 
+      | Snd: ('a * 'b) t -> 'b t [@@deriving variants]
     include
       sig
         val bool : bool -> bool t
         val int : int -> int t
-        val cond : cond:bool t -> true_case:'a t -> false_case:'a t -> 'a t
-        val is_bool : 'a t -> bool
-        val is_int : 'a t -> bool
-        val is_cond : 'a t -> bool
-        val bool_val : 'a t -> bool option
-        val int_val : 'a t -> int option
+        val cond :
+          cond:bool t -> true_branch:'a t -> false_branch:'a t -> 'a t
+        val pair : 'a t -> 'b t -> ('a * 'b) t
+        val swap : ('a * 'b) t -> ('b * 'a) t
+        val fst : ('a * 'b) t -> 'a t
+        val snd : ('a * 'b) t -> 'b t
+        val is_bool : _ t -> bool
+        val is_int : _ t -> bool
+        val is_cond : _ t -> bool
+        val is_pair : _ t -> bool
+        val is_swap : _ t -> bool
+        val is_fst : _ t -> bool
+        val is_snd : _ t -> bool
+        val bool_val : _ t -> bool option
+        val int_val : _ t -> int option
         val cond_val :
           'a t ->
-            ([ `cond of bool t ] * [ `true_case of 'a t ] *
-              [ `false_case of 'a t ]) option
+            ([ `cond of bool t ] * [ `true_branch of 'a t ] *
+              [ `false_branch of 'a t ]) option
+        val pair_val : ('a * 'b) t -> ('a t * 'b t) option
+        val swap_val : ('b * 'a) t -> ('a * 'b) t option
         module Variants :
         sig
           val bool : (bool -> bool t) Variantslib.Variant.t
           val int : (int -> int t) Variantslib.Variant.t
           val cond :
-            (cond:bool t -> true_case:'a t -> false_case:'a t -> 'a t)
+            (cond:bool t -> true_branch:'a t -> false_branch:'a t -> 'a t)
               Variantslib.Variant.t
+          val pair : ('a t -> 'b t -> ('a * 'b) t) Variantslib.Variant.t
+          val swap : (('a * 'b) t -> ('b * 'a) t) Variantslib.Variant.t
+          val fst : (('a * 'b) t -> 'a t) Variantslib.Variant.t
+          val snd : (('a * 'b) t -> 'b t) Variantslib.Variant.t
           val fold :
             init:'acc__ ->
               bool:('acc__ ->
@@ -599,46 +474,46 @@ module Gadt_inline_record :
                   ->
                   cond:('acc__ ->
                           (cond:bool t ->
-                             true_case:'a t -> false_case:'a t -> 'a t)
+                             true_branch:'a t -> false_branch:'a t -> 'a t)
                             Variantslib.Variant.t -> 'acc__)
-                    -> 'acc__
+                    ->
+                    pair:('acc__ ->
+                            ('a t -> 'b t -> ('a * 'b) t)
+                              Variantslib.Variant.t -> 'acc__)
+                      ->
+                      swap:('acc__ ->
+                              (('a * 'b) t -> ('b * 'a) t)
+                                Variantslib.Variant.t -> 'acc__)
+                        ->
+                        fst:('acc__ ->
+                               (('a * 'b) t -> 'a t) Variantslib.Variant.t ->
+                                 'acc__)
+                          ->
+                          snd:('acc__ ->
+                                 (('a * 'b) t -> 'b t) Variantslib.Variant.t
+                                   -> 'acc__)
+                            -> 'acc__
           val iter :
             bool:((bool -> bool t) Variantslib.Variant.t -> unit) ->
               int:((int -> int t) Variantslib.Variant.t -> unit) ->
                 cond:((cond:bool t ->
-                         true_case:'a t -> false_case:'a t -> 'a t)
+                         true_branch:'a t -> false_branch:'a t -> 'a t)
                         Variantslib.Variant.t -> unit)
-                  -> unit
-          val map :
-            'a t ->
-              bool:((bool -> bool t) Variantslib.Variant.t ->
-                      bool -> 'result__)
-                ->
-                int:((int -> int t) Variantslib.Variant.t -> int -> 'result__)
                   ->
-                  cond:((cond:bool t ->
-                           true_case:'a t -> false_case:'a t -> 'a t)
-                          Variantslib.Variant.t ->
-                          cond:bool t ->
-                            true_case:'a t -> false_case:'a t -> 'result__)
-                    -> 'result__
-          val make_matcher :
-            bool:((bool -> bool t) Variantslib.Variant.t ->
-                    'acc__0 -> ((bool -> 'result__) * 'acc__1))
-              ->
-              int:((int -> int t) Variantslib.Variant.t ->
-                     'acc__1 -> ((int -> 'result__) * 'acc__2))
-                ->
-                cond:((cond:bool t ->
-                         true_case:'a t -> false_case:'a t -> 'a t)
-                        Variantslib.Variant.t ->
-                        'acc__2 ->
-                          ((cond:bool t ->
-                              true_case:'a t -> false_case:'a t -> 'result__)
-                            * 'acc__3))
-                  -> 'acc__0 -> (('a t -> 'result__) * 'acc__3)
-          val to_rank : 'a t -> int
-          val to_name : 'a t -> string
+                  pair:(('a t -> 'b t -> ('a * 'b) t) Variantslib.Variant.t
+                          -> unit)
+                    ->
+                    swap:((('a * 'b) t -> ('b * 'a) t) Variantslib.Variant.t
+                            -> unit)
+                      ->
+                      fst:((('a * 'b) t -> 'a t) Variantslib.Variant.t ->
+                             unit)
+                        ->
+                        snd:((('a * 'b) t -> 'b t) Variantslib.Variant.t ->
+                               unit)
+                          -> unit
+          val to_rank : _ t -> int
+          val to_name : _ t -> string
           val descriptions : (string * int) list
         end
       end[@@ocaml.doc "@inline"][@@merlin.hide ]
@@ -649,33 +524,57 @@ module Gadt_inline_record :
       | Int: int -> int t 
       | Cond: {
       cond: bool t ;
-      true_case: 'a t ;
-      false_case: 'a t } -> 'a t [@@deriving variants]
+      true_branch: 'a t ;
+      false_branch: 'a t } -> 'a t 
+      | Pair: 'a t * 'b t -> ('a * 'b) t 
+      | Swap: ('a * 'b) t -> ('b * 'a) t 
+      | Fst: ('a * 'b) t -> 'a t 
+      | Snd: ('a * 'b) t -> 'b t [@@deriving variants]
     include
       struct
         let bool v0 = Bool v0
         let int v0 = Int v0
-        let cond ~cond:v0  ~true_case:v1  ~false_case:v2  =
-          Cond { cond = v0; true_case = v1; false_case = v2 }
-        let is_bool (type a) (t : a t) =
+        let cond ~cond:v0  ~true_branch:v1  ~false_branch:v2  =
+          Cond { cond = v0; true_branch = v1; false_branch = v2 }
+        let pair v0 v1 = Pair (v0, v1)
+        let swap v0 = Swap v0
+        let fst v0 = Fst v0
+        let snd v0 = Snd v0
+        let is_bool (type _x__001_) (t : _x__001_ t) =
           match t with | Bool _ -> true | _ -> false[@@warning "-4"]
-        let is_int (type a) (t : a t) =
+        let is_int (type _x__003_) (t : _x__003_ t) =
           match t with | Int _ -> true | _ -> false[@@warning "-4"]
-        let is_cond (type a) (t : a t) =
+        let is_cond (type _x__005_) (t : _x__005_ t) =
           match t with | Cond _ -> true | _ -> false[@@warning "-4"]
-        let bool_val (type a) (t : a t) =
+        let is_pair (type _x__006_) (t : _x__006_ t) =
+          match t with | Pair _ -> true | _ -> false[@@warning "-4"]
+        let is_swap (type _x__007_) (t : _x__007_ t) =
+          match t with | Swap _ -> true | _ -> false[@@warning "-4"]
+        let is_fst (type _x__008_) (t : _x__008_ t) =
+          match t with | Fst _ -> true | _ -> false[@@warning "-4"]
+        let is_snd (type _x__009_) (t : _x__009_ t) =
+          match t with | Snd _ -> true | _ -> false[@@warning "-4"]
+        let bool_val (type _x__002_) (t : _x__002_ t) =
           match t with
           | Bool v0 -> Stdlib.Option.Some v0
           | _ -> Stdlib.Option.None[@@warning "-4"]
-        let int_val (type a) (t : a t) =
+        let int_val (type _x__004_) (t : _x__004_ t) =
           match t with
           | Int v0 -> Stdlib.Option.Some v0
           | _ -> Stdlib.Option.None[@@warning "-4"]
         let cond_val (type a) (t : a t) =
           match t with
-          | Cond { cond = v0; true_case = v1; false_case = v2 } ->
+          | Cond { cond = v0; true_branch = v1; false_branch = v2 } ->
               Stdlib.Option.Some
-                ((`cond v0), (`true_case v1), (`false_case v2))
+                ((`cond v0), (`true_branch v1), (`false_branch v2))
+          | _ -> Stdlib.Option.None[@@warning "-4"]
+        let pair_val (type a) (type b) (t : (a * b) t) =
+          match t with
+          | Pair (v0, v1) -> Stdlib.Option.Some (v0, v1)
+          | _ -> Stdlib.Option.None[@@warning "-4"]
+        let swap_val (type a) (type b) (t : (b * a) t) =
+          match t with
+          | Swap v0 -> Stdlib.Option.Some v0
           | _ -> Stdlib.Option.None[@@warning "-4"]
         module Variants =
           struct
@@ -694,35 +593,69 @@ module Gadt_inline_record :
                 rank = 2;
                 constructor = cond
               }
+            let pair =
+              {
+                Variantslib.Variant.name = "Pair";
+                rank = 3;
+                constructor = pair
+              }
+            let swap =
+              {
+                Variantslib.Variant.name = "Swap";
+                rank = 4;
+                constructor = swap
+              }
+            let fst =
+              { Variantslib.Variant.name = "Fst"; rank = 5; constructor = fst
+              }
+            let snd =
+              { Variantslib.Variant.name = "Snd"; rank = 6; constructor = snd
+              }
             let fold ~init:init__  ~bool:bool_fun__  ~int:int_fun__ 
-              ~cond:cond_fun__  =
-              cond_fun__ (int_fun__ (bool_fun__ init__ bool) int) cond
-            let iter ~bool:bool_fun__  ~int:int_fun__  ~cond:cond_fun__  =
+              ~cond:cond_fun__  ~pair:pair_fun__  ~swap:swap_fun__ 
+              ~fst:fst_fun__  ~snd:snd_fun__  =
+              snd_fun__
+                (fst_fun__
+                   (swap_fun__
+                      (pair_fun__
+                         (cond_fun__ (int_fun__ (bool_fun__ init__ bool) int)
+                            cond) pair) swap) fst) snd
+            let iter ~bool:bool_fun__  ~int:int_fun__  ~cond:cond_fun__ 
+              ~pair:pair_fun__  ~swap:swap_fun__  ~fst:fst_fun__ 
+              ~snd:snd_fun__  =
               (bool_fun__ bool : unit);
               (int_fun__ int : unit);
-              (cond_fun__ cond : unit)
-            let map (type a) (t__ : a t) ~bool:bool_fun__  ~int:int_fun__ 
-              ~cond:cond_fun__  =
-              match t__ with
-              | Bool v0 -> bool_fun__ bool v0
-              | Int v0 -> int_fun__ int v0
-              | Cond { cond = v0; true_case = v1; false_case = v2 } ->
-                  cond_fun__ cond ~cond:v0 ~true_case:v1 ~false_case:v2
-            let make_matcher ~bool:bool_fun__  ~int:int_fun__ 
-              ~cond:cond_fun__  compile_acc__ =
-              let (bool_gen__, compile_acc__) = bool_fun__ bool compile_acc__ in
-              let (int_gen__, compile_acc__) = int_fun__ int compile_acc__ in
-              let (cond_gen__, compile_acc__) = cond_fun__ cond compile_acc__ in
-              ((map ~bool:(fun _ -> bool_gen__) ~int:(fun _ -> int_gen__)
-                  ~cond:(fun _ -> cond_gen__)), compile_acc__)
-            let to_rank (type a) (t : a t) =
-              match t with | Bool _ -> 0 | Int _ -> 1 | Cond _ -> 2
-            let to_name (type a) (t : a t) =
+              (cond_fun__ cond : unit);
+              (pair_fun__ pair : unit);
+              (swap_fun__ swap : unit);
+              (fst_fun__ fst : unit);
+              (snd_fun__ snd : unit)
+            let to_rank (type _x__011_) (t : _x__011_ t) =
+              match t with
+              | Bool _ -> 0
+              | Int _ -> 1
+              | Cond _ -> 2
+              | Pair _ -> 3
+              | Swap _ -> 4
+              | Fst _ -> 5
+              | Snd _ -> 6
+            let to_name (type _x__010_) (t : _x__010_ t) =
               match t with
               | Bool _ -> "Bool"
               | Int _ -> "Int"
               | Cond _ -> "Cond"
-            let descriptions = [("Bool", 1); ("Int", 1); ("Cond", 3)]
+              | Pair _ -> "Pair"
+              | Swap _ -> "Swap"
+              | Fst _ -> "Fst"
+              | Snd _ -> "Snd"
+            let descriptions =
+              [("Bool", 1);
+              ("Int", 1);
+              ("Cond", 3);
+              ("Pair", 2);
+              ("Swap", 1);
+              ("Fst", 1);
+              ("Snd", 1)]
           end
       end[@@ocaml.doc "@inline"][@@merlin.hide ]
   end 
@@ -733,8 +666,8 @@ module Gadt_arity :
     include
       sig
         val eq : ('a, 'a) t
-        val is_eq : ('a, 'b) t -> bool
-        val eq_val : ('a, 'b) t -> unit option
+        val is_eq : (_, _) t -> bool
+        val eq_val : ('a, 'a) t -> unit option
         module Variants :
         sig
           val eq : ('a, 'a) t Variantslib.Variant.t
@@ -744,14 +677,14 @@ module Gadt_arity :
                 'acc__
           val iter : eq:(('a, 'a) t Variantslib.Variant.t -> unit) -> unit
           val map :
-            ('a, 'b) t ->
+            (_, _) t ->
               eq:(('a, 'a) t Variantslib.Variant.t -> 'result__) -> 'result__
           val make_matcher :
             eq:(('a, 'a) t Variantslib.Variant.t ->
                   'acc__0 -> ((unit -> 'result__) * 'acc__1))
-              -> 'acc__0 -> ((('a, 'b) t -> 'result__) * 'acc__1)
-          val to_rank : ('a, 'b) t -> int
-          val to_name : ('a, 'b) t -> string
+              -> 'acc__0 -> (((_, _) t -> 'result__) * 'acc__1)
+          val to_rank : (_, _) t -> int
+          val to_name : (_, _) t -> string
           val descriptions : (string * int) list
         end
       end[@@ocaml.doc "@inline"][@@merlin.hide ]
@@ -762,9 +695,10 @@ module Gadt_arity :
     include
       struct
         let eq = Eq
-        let is_eq (type b) (type a) (t : (a, b) t) =
-          match t with | Eq -> true[@@warning "-4"]
-        let eq_val (type b) (type a) (t : (a, b) t) =
+        let is_eq (type _x__012_) (type _x__013_)
+          (t : (_x__012_, _x__013_) t) = match t with | Eq -> true[@@warning
+                                                                    "-4"]
+        let eq_val (type a) (t : (a, a) t) =
           match t with | Eq -> Stdlib.Option.Some ()[@@warning "-4"]
         module Variants =
           struct
@@ -772,15 +706,16 @@ module Gadt_arity :
               { Variantslib.Variant.name = "Eq"; rank = 0; constructor = eq }
             let fold ~init:init__  ~eq:eq_fun__  = eq_fun__ init__ eq
             let iter ~eq:eq_fun__  = (eq_fun__ eq : unit)
-            let map (type b) (type a) (t__ : (a, b) t) ~eq:eq_fun__  =
+            let map (type _x__018_) (type _x__019_)
+              (t__ : (_x__018_, _x__019_) t) ~eq:eq_fun__  =
               match t__ with | Eq -> eq_fun__ eq
             let make_matcher ~eq:eq_fun__  compile_acc__ =
               let (eq_gen__, compile_acc__) = eq_fun__ eq compile_acc__ in
               ((map ~eq:(fun _ -> eq_gen__ ())), compile_acc__)
-            let to_rank (type b) (type a) (t : (a, b) t) =
-              match t with | Eq -> 0
-            let to_name (type b) (type a) (t : (a, b) t) =
-              match t with | Eq -> "Eq"
+            let to_rank (type _x__016_) (type _x__017_)
+              (t : (_x__016_, _x__017_) t) = match t with | Eq -> 0
+            let to_name (type _x__014_) (type _x__015_)
+              (t : (_x__014_, _x__015_) t) = match t with | Eq -> "Eq"
             let descriptions = [("Eq", 0)]
           end
       end[@@ocaml.doc "@inline"][@@merlin.hide ]

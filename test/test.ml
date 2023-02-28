@@ -27,27 +27,21 @@ module Gadt : sig
   type _ t = 
     | Bool : bool -> bool t
     | Int : int -> int t
-    | Cond : bool t * 'a t * 'a t -> 'a t
+    | Cond : { cond: bool t ; true_branch: 'a t ; false_branch: 'a t } -> 'a t
+    | Pair : 'a t * 'b t -> ('a * 'b) t
+    | Swap : ('a * 'b) t -> ('b * 'a) t
+    | Fst: ('a * 'b) t -> 'a t 
+    | Snd : ('a * 'b) t -> 'b t
   [@@deriving variants] 
 end =  struct
   type _ t = 
     | Bool : bool -> bool t
     | Int : int -> int t
-    | Cond : bool t * 'a t * 'a t -> 'a t
-  [@@deriving variants] 
-end
-
-module Gadt_inline_record : sig 
-  type _ t = 
-    | Bool : bool -> bool t
-    | Int : int -> int t
-    | Cond : { cond: bool t; true_case: 'a t; false_case: 'a t } -> 'a t
-  [@@deriving variants] 
-end =  struct
-  type _ t = 
-    | Bool : bool -> bool t
-    | Int : int -> int t
-    | Cond : { cond: bool t; true_case: 'a t; false_case: 'a t } -> 'a t
+    | Cond : { cond: bool t ; true_branch: 'a t ; false_branch: 'a t } -> 'a t
+    | Pair : 'a t * 'b t -> ('a * 'b) t
+    | Swap : ('a * 'b) t -> ('b * 'a) t
+    | Fst: ('a * 'b) t -> 'a t 
+    | Snd : ('a * 'b) t -> 'b t
   [@@deriving variants] 
 end
 
