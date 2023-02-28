@@ -145,46 +145,39 @@ module Variant_constructor = struct
   type t = {
     name    : string;
     loc     : Location.t;
-    kind    : [ `Normal of core_type list
-              | `Normal_inline_record of label_declaration list
-              | `Gadt of core_type list * core_type
-              | `Gadt_inline_record of label_declaration list * core_type
+    kind    : [ `Normal of core_type list * core_type option
+              | `Normal_inline_record of label_declaration list * core_type option
               | `Polymorphic of core_type option ]
   }
 
   let is_gadt { kind; _ } = 
     match kind with
-    | `Gadt _ | `Gadt_inline_record _ -> true
-    | `Normal _ | `Normal_inline_record _ | `Polymorphic _ -> false
+    | `Normal (_, return_ty_opt) | `Normal_inline_record (_, return_ty_opt) -> 
+      Option.is_some return_ty_opt
+    | `Polymorphic _ -> false
   ;;
 
   let args t =
     match t.kind with
-    | `Normal pcd_args ->
+    | `Normal (pcd_args, _) ->
       List.mapi pcd_args ~f:(fun i _ -> Nolabel, "v" ^ Int.to_string i)
-    | `Gadt (pcd_args,_) ->
-      List.mapi pcd_args ~f:(fun i _ -> Nolabel, "v" ^ Int.to_string i)
-    | `Normal_inline_record fields ->
-      List.mapi fields ~f:(fun i f -> Labelled f.pld_name.txt, "v" ^ Int.to_string i)
-    | `Gadt_inline_record (fields,_) ->
+    | `Normal_inline_record (fields, _) ->
       List.mapi fields ~f:(fun i f -> Labelled f.pld_name.txt, "v" ^ Int.to_string i)
     | `Polymorphic None -> []
     | `Polymorphic (Some _) -> [Nolabel, "v0"]
 
   let return_ty_opt t = 
     match t.kind with
-    | `Normal _ 
-    | `Normal_inline_record _
+    | `Normal (_, return_ty_opt)
+    | `Normal_inline_record (_, return_ty_opt) -> return_ty_opt
     | `Polymorphic _ -> None 
-    | `Gadt_inline_record (_, return_ty) 
-    | `Gadt (_, return_ty) -> Some return_ty
   ;;
 
   let pattern_without_binding { name; loc; kind } =
     match kind with
-    | `Normal [] | `Gadt ([],_) ->
+    | `Normal ([], _) ->
       ppat_construct ~loc (Located.lident ~loc name) None
-    | `Normal (_ :: _) | `Normal_inline_record _  | `Gadt _  | `Gadt_inline_record _ ->
+    | `Normal (_ :: _, _) | `Normal_inline_record _ -> 
       ppat_construct ~loc (Located.lident ~loc name) (Some (ppat_any ~loc))
     | `Polymorphic None ->
       ppat_variant ~loc name None
@@ -196,8 +189,8 @@ module Variant_constructor = struct
       match t.kind with
       | `Polymorphic None -> []
       | `Polymorphic (Some v) -> [(Nolabel, v)]
-      | `Normal args | `Gadt (args,_) -> List.map args ~f:(fun typ -> Nolabel, typ)
-      | `Normal_inline_record fields | `Gadt_inline_record (fields,_) ->
+      | `Normal (args, _) -> List.map args ~f:(fun typ -> Nolabel, typ)
+      | `Normal_inline_record (fields, _) ->
         List.map fields ~f:(fun cd -> Labelled cd.pld_name.txt, cd.pld_type) 
     in
     Create.lambda_sig t.loc arg_types body_ty
@@ -213,11 +206,11 @@ module Variant_constructor = struct
     let loc = t.loc in
     let result_type =
       match t.kind with
-      | `Polymorphic None | `Normal [] | `Normal_inline_record [] 
-      | `Gadt ([],_) | `Gadt_inline_record ([],_) -> [%type: unit]
+      | `Polymorphic None | `Normal ([], _) | `Normal_inline_record ([], _) -> 
+        [%type: unit]
       | `Polymorphic (Some v) -> v
-      | `Normal tup | `Gadt (tup,_) -> ptyp_tuple ~loc tup
-      | `Normal_inline_record fields | `Gadt_inline_record (fields,_) ->
+      | `Normal (tup, _) -> ptyp_tuple ~loc tup
+      | `Normal_inline_record (fields, _) ->
         ptyp_tuple ~loc (List.map fields ~f:variant_for_label)
     in
     ptyp_arrow ~loc Nolabel input_type [%type: [%t result_type] option]
@@ -229,13 +222,13 @@ module Variant_constructor = struct
       | `Polymorphic (Some _) ->
         let ident = "v" in
         ppat_variant ~loc name (Some (pvar ident ~loc)), [ `Unlabelled ident ]
-      | `Normal [] | `Gadt ([],_) -> ppat_construct ~loc (Located.lident ~loc name) None, []
-      | `Normal args | `Gadt (args,_) ->
+      | `Normal ([], _) -> ppat_construct ~loc (Located.lident ~loc name) None, []
+      | `Normal (args, _) ->
         let idents = List.mapi args ~f:(fun i _ -> "v" ^ Int.to_string i) in
         let patterns = List.map idents ~f:(pvar ~loc) in
         ( ppat_construct ~loc (Located.lident ~loc name) (Some (ppat_tuple ~loc patterns))
         , List.map idents ~f:(fun i -> `Unlabelled i) )
-      | `Normal_inline_record lds | `Gadt_inline_record (lds,_) ->
+      | `Normal_inline_record (lds, _) ->
         let patterns, idents =
           List.mapi lds ~f:(fun i ld ->
             let ident = "v" ^ Int.to_string i in
@@ -286,12 +279,9 @@ module Inspect = struct
 
   let constructor cd : Variant_constructor.t =
     let kind =
-      match cd.pcd_args , cd.pcd_res with
-      | Pcstr_tuple pcd_args , Some result_type -> `Gadt (pcd_args,result_type)
-      | Pcstr_tuple pcd_args , _ -> `Normal pcd_args
-      | Pcstr_record fields  , None -> `Normal_inline_record fields
-      | Pcstr_record pcd_args , Some result_type -> 
-        `Gadt_inline_record (pcd_args, result_type)
+      match cd.pcd_args with
+      | Pcstr_tuple pcd_args -> `Normal (pcd_args, cd.pcd_res)
+      | Pcstr_record fields -> `Normal_inline_record (fields, cd.pcd_res)
     in
     { name = cd.pcd_name.txt
     ; loc = cd.pcd_name.loc
@@ -500,7 +490,7 @@ module Gen_str = struct
         let constructor =
           let constructed_value =
             match v.V.kind with
-            | `Normal _  | `Gadt _ ->
+            | `Normal _ -> 
               let arg =
                 pexp_tuple_opt ~loc (List.map (V.args v) ~f:(fun (_, v) -> evar ~loc v))
               in
@@ -510,7 +500,7 @@ module Gen_str = struct
                 pexp_tuple_opt ~loc (List.map (V.args v) ~f:(fun (_, v) -> evar ~loc v))
               in
               pexp_variant ~loc v.V.name arg
-            | `Normal_inline_record fields | `Gadt_inline_record (fields,_) ->
+            | `Normal_inline_record (fields, _) ->
               let arg =
                 pexp_record
                   ~loc
@@ -646,18 +636,7 @@ module Gen_str = struct
         | `Normal _      ->
           let arg = ppat_tuple_opt ~loc (List.map (V.args variant) ~f:(fun (_,v) -> pvar ~loc v)) in
           ppat_construct ~loc (Located.lident ~loc variant.V.name) arg
-        | `Normal_inline_record fields ->
-          let arg =
-            ppat_record ~loc
-              (List.map2_exn fields (V.args variant)
-                 ~f:(fun f (_,v) -> Located.lident ~loc f.pld_name.txt, pvar ~loc v))
-              Closed
-          in
-          ppat_construct ~loc (Located.lident ~loc variant.V.name) (Some arg)
-        | `Gadt _      ->
-          let arg = ppat_tuple_opt ~loc (List.map (V.args variant) ~f:(fun (_,v) -> pvar ~loc v)) in
-          ppat_construct ~loc (Located.lident ~loc variant.V.name) arg
-        | `Gadt_inline_record (fields,_) ->
+        | `Normal_inline_record (fields, _) ->
           let arg =
             ppat_record ~loc
               (List.map2_exn fields (V.args variant)
