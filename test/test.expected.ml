@@ -557,25 +557,25 @@ module Gadt :
         let bool_val (type _x__002_) (t : _x__002_ t) =
           match t with
           | Bool v0 -> Stdlib.Option.Some v0
-          | _ -> Stdlib.Option.None[@@warning "-4"]
+          | _ -> Stdlib.Option.None[@@warning "-4-56"]
         let int_val (type _x__004_) (t : _x__004_ t) =
           match t with
           | Int v0 -> Stdlib.Option.Some v0
-          | _ -> Stdlib.Option.None[@@warning "-4"]
+          | _ -> Stdlib.Option.None[@@warning "-4-56"]
         let cond_val (type a) (t : a t) =
           match t with
           | Cond { cond = v0; true_branch = v1; false_branch = v2 } ->
               Stdlib.Option.Some
                 ((`cond v0), (`true_branch v1), (`false_branch v2))
-          | _ -> Stdlib.Option.None[@@warning "-4"]
+          | _ -> Stdlib.Option.None[@@warning "-4-56"]
         let pair_val (type a) (type b) (t : (a * b) t) =
           match t with
           | Pair (v0, v1) -> Stdlib.Option.Some (v0, v1)
-          | _ -> Stdlib.Option.None[@@warning "-4"]
+          | _ -> Stdlib.Option.None[@@warning "-4-56"]
         let swap_val (type a) (type b) (t : (b * a) t) =
           match t with
           | Swap v0 -> Stdlib.Option.Some v0
-          | _ -> Stdlib.Option.None[@@warning "-4"]
+          | _ -> Stdlib.Option.None[@@warning "-4-56"]
         module Variants =
           struct
             let bool =
@@ -699,7 +699,7 @@ module Gadt_arity :
           (t : (_x__012_, _x__013_) t) = match t with | Eq -> true[@@warning
                                                                     "-4"]
         let eq_val (type a) (t : (a, a) t) =
-          match t with | Eq -> Stdlib.Option.Some ()[@@warning "-4"]
+          match t with | Eq -> Stdlib.Option.Some ()[@@warning "-4-56"]
         module Variants =
           struct
             let eq =
