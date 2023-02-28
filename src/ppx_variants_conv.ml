@@ -477,17 +477,17 @@ module Gen_str = struct
               pexp_construct ~loc (Located.lident ~loc v.V.name) (Some arg)
           in
           pstr_value
-              ~loc
-              Nonrecursive
-              [ value_binding
-                  ~loc
-                  ~pat:(pvar ~loc uncapitalized)
-                  ~expr:
-                    (List.fold_right
-                      (V.args v)
-                      ~init:constructed_value
-                      ~f:(fun (label, v) e -> pexp_fun ~loc label None (pvar ~loc v) e))
-              ]
+            ~loc
+            Nonrecursive
+            [ value_binding
+                ~loc
+                ~pat:(pvar ~loc uncapitalized)
+                ~expr:
+                  (List.fold_right
+                    (V.args v)
+                    ~init:constructed_value
+                    ~f:(fun (label, v) e -> pexp_fun ~loc label None (pvar ~loc v) e))
+            ]
         in
         let variant =
           [%stri
@@ -770,12 +770,12 @@ module Gen_str = struct
     @ [ pstr_module
           ~loc
           (module_binding
-            ~loc
-            ~name:(Located.mk ~loc (Some (variants_module variant_name)))
-            ~expr:
-              (pmod_structure
-                ~loc
-                (variants
+             ~loc
+             ~name:(Located.mk ~loc (Some (variants_module variant_name)))
+             ~expr:
+               (pmod_structure
+                 ~loc
+                 (variants
                   @ List.filter_map ~f:Fn.id
                     [ Some (v_fold_fun loc ty)
                     ; Some (v_iter_fun loc ty)
