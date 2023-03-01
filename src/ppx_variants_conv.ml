@@ -210,10 +210,15 @@ module Gen_sig = struct
   ;;
 
   let v_fold_fun ~variant_type loc variants =
-    let f = variant_arg ~variant_type (fun ~variant -> [%type: 'acc__ -> [%t variant] -> 'acc__ ]) in
-    let types = List.map variants ~f in
-    let init_ty = label_arg loc "init" [%type:  'acc__ ] in
-    let t = Create.lambda_sig loc (init_ty :: types) [%type: 'acc__ ] in
+    let acc i = ptyp_var ~loc ("acc__" ^ Int.to_string i) in
+    let f i v =
+      variant_arg ~variant_type
+        (fun ~variant -> [%type: [%t acc i] -> [%t variant] -> [%t acc (i + 1)] ])
+        v
+    in
+    let types = List.mapi variants ~f in
+    let init_ty = label_arg loc "init" (acc 0) in
+    let t = Create.lambda_sig loc (init_ty :: types) (acc (List.length variants)) in
     val_ ~loc "fold" t
   ;;
 

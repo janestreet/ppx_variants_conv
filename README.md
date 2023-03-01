@@ -53,12 +53,12 @@ module Variants : sig
   val d : (int -> int -> 'a t) Variant.t
 
   val fold :
-    init: 'b
-    -> a:('b -> ('a -> 'a t)         Variant.t -> 'c)
-    -> b:('c -> (char -> 'a t)       Variant.t -> 'd)
-    -> c:('d -> ('a t)               Variant.t -> 'e)
-    -> d:('e -> (int -> int -> 'a t) Variant.t -> 'f)
-    -> 'f
+    init: 'acc1
+    -> a:('acc1 -> ('a -> 'a t)         Variant.t -> 'acc2)
+    -> b:('acc2 -> (char -> 'a t)       Variant.t -> 'acc3)
+    -> c:('acc3 -> ('a t)               Variant.t -> 'acc4)
+    -> d:('acc4 -> (int -> int -> 'a t) Variant.t -> 'acc5)
+    -> 'acc5
 
   val iter :
        a: (('a -> 'a t)         Variant.t -> unit)
@@ -76,12 +76,12 @@ module Variants : sig
     -> 'r
 
   val make_matcher :
-       a:(('a -> 'a t)         Variant.t -> 'b -> ('c -> 'd)         * 'e)
-    -> b:((char -> 'f t)       Variant.t -> 'e -> (char -> 'd)       * 'g)
-    -> c:('h t                 Variant.t -> 'g -> (unit -> 'd)       * 'i)
-    -> d:((int -> int -> 'j t) Variant.t -> 'i -> (int -> int -> 'd) * 'k)
-    -> 'b
-    -> ('c t -> 'd) * 'k
+       a:(('b -> 'b t)        Variant.t -> 'acc1 -> ('a -> 'r)         * 'acc2)
+    -> b:((char -> _ t)       Variant.t -> 'acc2 -> (char -> 'r)       * 'acc3)
+    -> c:(_ t                 Variant.t -> 'acc3 -> (unit -> 'r)       * 'acc4)
+    -> d:((int -> int -> _ t) Variant.t -> 'acc4 -> (int -> int -> 'r) * 'acc5)
+    -> 'acc1
+    -> ('a t -> 'r) * 'acc5
 
   val to_rank : _ t -> int
   val to_name : _ t -> string
