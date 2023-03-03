@@ -87,24 +87,6 @@ module Variant_constructor = struct
     | `Polymorphic _ -> false
   ;;
 
-  (** Does our constructor contain type variables which do not appear in the 
-      return type; applies to GADT constructors only *)
-  let has_existential { kind; _} = 
-    let aux tyvars_ret tyvars_ctor = 
-      List.exists tyvars_ctor 
-        ~f:(fun lbl -> not @@ List.exists ~f:(String.equal lbl) tyvars_ret)
-    in
-    match kind with
-    | `Normal (tys,Some ret_ty) ->
-      aux (Core_type.tyvars ret_ty)
-      @@ List.fold_left tys ~init:[]  ~f:(fun acc ty -> Core_type.tyvars ~acc ty)
-    | `Normal_inline_record (flds, Some ret_ty) ->
-      aux (Core_type.tyvars ret_ty)
-      @@ List.fold_left flds ~init:[]  
-          ~f:(fun acc fld -> Core_type.tyvars ~acc fld.pld_type)
-    | _ -> false
-  ;;
-
   let args t =
     match t.kind with
     | `Normal (pcd_args, _) ->
@@ -146,7 +128,7 @@ module Variant_constructor = struct
   let to_getter_type t ~lhs:input_type =
     (* We cannot generate a getter when our constructor has existentially bound
        type variables since they would escape their scope *)
-    if has_existential t then None 
+    if is_gadt t then None 
     else 
     let variant_for_label (ld : label_declaration) =
       ptyp_variant
@@ -310,7 +292,7 @@ module Gen_sig = struct
 
   let v_map_fun_opt ~variant_type loc variants =
     let module V = Variant_constructor in
-    if List.exists variants ~f:V.has_existential then None 
+    if List.exists variants ~f:V.is_gadt then None 
     else 
       let result_type = [%type:  'result__ ] in
       let f v =
@@ -332,7 +314,7 @@ module Gen_sig = struct
 
   let v_make_matcher_fun_opt ~variant_type loc variants =
     let module V = Variant_constructor in
-    if List.exists variants ~f:V.has_existential then None 
+    if List.exists variants ~f:V.is_gadt then None 
     else 
       let result_type = [%type:  'result__ ] in
       let acc i = ptyp_var ~loc ("acc__" ^ Int.to_string i) in
@@ -498,75 +480,52 @@ module Gen_str = struct
               }
           ]
         in
-        let tester =
-          let name = "is_" ^ uncapitalized in
-          let true_case =
-            case
-              ~guard:None
-              ~lhs:(Variant_constructor.pattern_without_binding v)
-              ~rhs:[%expr true]
-          in
-          let false_expr = [%expr false] in
+        let match_fun ~name ~true_case ~false_expr =
           let cases =
             if multiple_cases
             then [ true_case; case ~guard:None ~lhs:[%pat? _] ~rhs:false_expr ]
             else [ true_case ]
           in
-          if Variant_constructor.is_gadt v then 
-              let (variant_ty,lbls) = Core_type.newtypes variant_ty in
-              let pat_arg  = ppat_constraint ~loc (ppat_var ~loc {loc;txt="t"} ) 
-                variant_ty in
-              let ident = pexp_ident ~loc  {loc;txt=Longident.Lident "t"}  in
-              let match_expr = pexp_match ~loc ident cases in
-              let fun_expr  =pexp_fun ~loc Nolabel None pat_arg match_expr in 
-              let lbl_locs = List.map lbls ~f:(fun txt -> {loc;txt}) in
-              let body = with_newtypes loc lbl_locs fun_expr in
-              (* attributes are a pain to add and mean we can't use metaquot
-                 so we repeat ourselves here rather than use [locally_abstract_match] *)
-              [%stri let [%p pvar ~loc name] =  
-                [%e body] 
-                [@@warning "-4"]
-              ]
+          if Variant_constructor.is_gadt v then
+            let (variant_ty,lbls) =  Core_type.newtypes variant_ty in
+            let pat_arg  = ppat_constraint ~loc (ppat_var ~loc {loc;txt="t"} ) variant_ty in
+            let ident = pexp_ident ~loc  {loc;txt=Longident.Lident "t"}  in
+            let match_expr = pexp_match ~loc ident cases in
+            let fun_expr  =pexp_fun ~loc Nolabel None pat_arg match_expr in 
+            let lbl_locs = List.map ~f:(fun txt -> {loc;txt}) lbls in
+            let body = with_newtypes loc lbl_locs fun_expr in
+            (* attributes are a pain to add and mean we can't use metaquot
+               so we repeat ourselves here rather than use [locally_abstract_match] *)
+            [%stri let [%p pvar ~loc name] =  
+              [%e body] 
+              [@@warning "-4"]
+            ]
           else
-            [%stri let [%p pvar ~loc name] = 
-              [%e pexp_function ~loc cases] [@@warning "-4"]]
+            [%stri let [%p pvar ~loc name] = [%e pexp_function ~loc cases] [@@warning "-4"]]
         in
-
-        let getter =
+        let tester =
+          let name = "is_" ^ uncapitalized in
+          let true_case = case ~guard:None
+              ~lhs:(Variant_constructor.pattern_without_binding v)
+              ~rhs:[%expr true]
+          in
+          match_fun ~name ~true_case ~false_expr:[%expr false]  
+        in
+        let getter_opt =
+          (* We cannot generate a getter for GADTs in the case that we have
+             existentially quantified tyvars. Further we can't generate 
+             _regular_ getter functions when the GADT is non-regular. For 
+             the time being we skip generating getters for GADTs altogether *)
+          if Variant_constructor.is_gadt v then None
+          else 
           let name = uncapitalized ^ "_val" in
           let pat, expr = Variant_constructor.to_getter_case v in
           let true_case =
             case ~guard:None ~lhs:pat ~rhs:[%expr Stdlib.Option.Some [%e expr]]
           in
-          let false_expr = [%expr Stdlib.Option.None] in
-          let cases =
-            if multiple_cases
-            then [ true_case; case ~guard:None ~lhs:[%pat? _] ~rhs:false_expr ]
-            else [ true_case ]
-          in
-          match Variant_constructor.return_ty_opt v  with
-          | Some return_ty when 
-              not @@ Variant_constructor.has_existential v ->
-            let (return_ty,lbls) = Core_type.newtypes return_ty in
-            let pat_arg  = ppat_constraint ~loc (ppat_var ~loc {loc;txt="t"} ) 
-              return_ty in
-            let ident = pexp_ident ~loc  {loc;txt=Longident.Lident "t"}  in
-            let match_expr = pexp_match ~loc ident cases in
-            let fun_expr  =pexp_fun ~loc Nolabel None pat_arg match_expr in 
-            let lbl_locs = List.map lbls ~f:(fun txt -> {loc;txt}) in
-            let body = with_newtypes loc lbl_locs fun_expr in
-            (* attributes are a pain to add and mean we can't use metaquot
-               so we repeat ourselves here rather than use [locally_abstract_match] *)
-            Some [%stri let [%p pvar ~loc name] =  
-              [%e body] 
-              [@@warning "-4-56"]
-            ]
-          | Some _ -> None
-          | _ ->
-            Some [%stri let [%p pvar ~loc name] = 
-                    [%e pexp_function ~loc cases] [@@warning "-4"]]
+          Some (match_fun ~name ~true_case ~false_expr:[%expr Stdlib.Option.None])
         in
-        (constructor, tester, getter), variant)
+        (constructor, tester, getter_opt), variant)
       |> List.unzip
     in
     let constructors, testers, getters = List.unzip3 helpers in
@@ -621,7 +580,9 @@ module Gen_str = struct
 
   let v_map_fun_opt loc variants variant_ty =
     let module V = Variant_constructor in
-    if List.exists variants ~f:V.has_existential then None
+    (* We are currently not generating getter for GADTs which mean we can't
+       generate [map] *)
+    if List.exists variants ~f:V.is_gadt then None
     else
       let variant_match_case variant =
         let pattern =
@@ -682,8 +643,9 @@ module Gen_str = struct
 
   let v_make_matcher_fun_opt loc variants =
     let module V = Variant_constructor in
-    let module V = Variant_constructor in
-    if List.exists variants ~f:V.has_existential then None
+    (* We are currently not generating getter for GADTs which mean we can't
+       generate [map] and consequently can't generate a matcher either *)
+    if List.exists variants ~f:V.is_gadt then None
     else 
       let result =
         let map =

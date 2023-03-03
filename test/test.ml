@@ -25,6 +25,7 @@ end
 
 module Gadt : sig 
   type _ t = 
+    | Pure: 'a -> 'a t
     | Bool : bool -> bool t
     | Int : int -> int t
     | Cond : { cond: bool t ; true_branch: 'a t ; false_branch: 'a t } -> 'a t
@@ -35,6 +36,7 @@ module Gadt : sig
   [@@deriving variants] 
 end =  struct
   type _ t = 
+    | Pure: 'a -> 'a t
     | Bool : bool -> bool t
     | Int : int -> int t
     | Cond : { cond: bool t ; true_branch: 'a t ; false_branch: 'a t } -> 'a t

@@ -419,6 +419,7 @@ module Wildcard :
 module Gadt :
   sig
     type _ t =
+      | Pure: 'a -> 'a t 
       | Bool: bool -> bool t 
       | Int: int -> int t 
       | Cond: {
@@ -431,6 +432,7 @@ module Gadt :
       | Snd: ('a * 'b) t -> 'b t [@@deriving variants]
     include
       sig
+        val pure : 'a -> 'a t
         val bool : bool -> bool t
         val int : int -> int t
         val cond :
@@ -439,6 +441,7 @@ module Gadt :
         val swap : ('a * 'b) t -> ('b * 'a) t
         val fst : ('a * 'b) t -> 'a t
         val snd : ('a * 'b) t -> 'b t
+        val is_pure : _ t -> bool
         val is_bool : _ t -> bool
         val is_int : _ t -> bool
         val is_cond : _ t -> bool
@@ -446,16 +449,9 @@ module Gadt :
         val is_swap : _ t -> bool
         val is_fst : _ t -> bool
         val is_snd : _ t -> bool
-        val bool_val : _ t -> bool option
-        val int_val : _ t -> int option
-        val cond_val :
-          'a t ->
-            ([ `cond of bool t ] * [ `true_branch of 'a t ] *
-              [ `false_branch of 'a t ]) option
-        val pair_val : ('a * 'b) t -> ('a t * 'b t) option
-        val swap_val : ('b * 'a) t -> ('a * 'b) t option
         module Variants :
         sig
+          val pure : ('a -> 'a t) Variantslib.Variant.t
           val bool : (bool -> bool t) Variantslib.Variant.t
           val int : (int -> int t) Variantslib.Variant.t
           val cond :
@@ -467,51 +463,55 @@ module Gadt :
           val snd : (('a * 'b) t -> 'b t) Variantslib.Variant.t
           val fold :
             init:'acc__ ->
-              bool:('acc__ ->
-                      (bool -> bool t) Variantslib.Variant.t -> 'acc__)
+              pure:('acc__ -> ('a -> 'a t) Variantslib.Variant.t -> 'acc__)
                 ->
-                int:('acc__ -> (int -> int t) Variantslib.Variant.t -> 'acc__)
+                bool:('acc__ ->
+                        (bool -> bool t) Variantslib.Variant.t -> 'acc__)
                   ->
-                  cond:('acc__ ->
-                          (cond:bool t ->
-                             true_branch:'a t -> false_branch:'a t -> 'a t)
-                            Variantslib.Variant.t -> 'acc__)
+                  int:('acc__ ->
+                         (int -> int t) Variantslib.Variant.t -> 'acc__)
                     ->
-                    pair:('acc__ ->
-                            ('a t -> 'b t -> ('a * 'b) t)
+                    cond:('acc__ ->
+                            (cond:bool t ->
+                               true_branch:'a t -> false_branch:'a t -> 'a t)
                               Variantslib.Variant.t -> 'acc__)
                       ->
-                      swap:('acc__ ->
-                              (('a * 'b) t -> ('b * 'a) t)
+                      pair:('acc__ ->
+                              ('a t -> 'b t -> ('a * 'b) t)
                                 Variantslib.Variant.t -> 'acc__)
                         ->
-                        fst:('acc__ ->
-                               (('a * 'b) t -> 'a t) Variantslib.Variant.t ->
-                                 'acc__)
+                        swap:('acc__ ->
+                                (('a * 'b) t -> ('b * 'a) t)
+                                  Variantslib.Variant.t -> 'acc__)
                           ->
-                          snd:('acc__ ->
-                                 (('a * 'b) t -> 'b t) Variantslib.Variant.t
+                          fst:('acc__ ->
+                                 (('a * 'b) t -> 'a t) Variantslib.Variant.t
                                    -> 'acc__)
-                            -> 'acc__
+                            ->
+                            snd:('acc__ ->
+                                   (('a * 'b) t -> 'b t)
+                                     Variantslib.Variant.t -> 'acc__)
+                              -> 'acc__
           val iter :
-            bool:((bool -> bool t) Variantslib.Variant.t -> unit) ->
-              int:((int -> int t) Variantslib.Variant.t -> unit) ->
-                cond:((cond:bool t ->
-                         true_branch:'a t -> false_branch:'a t -> 'a t)
-                        Variantslib.Variant.t -> unit)
-                  ->
-                  pair:(('a t -> 'b t -> ('a * 'b) t) Variantslib.Variant.t
-                          -> unit)
+            pure:(('a -> 'a t) Variantslib.Variant.t -> unit) ->
+              bool:((bool -> bool t) Variantslib.Variant.t -> unit) ->
+                int:((int -> int t) Variantslib.Variant.t -> unit) ->
+                  cond:((cond:bool t ->
+                           true_branch:'a t -> false_branch:'a t -> 'a t)
+                          Variantslib.Variant.t -> unit)
                     ->
-                    swap:((('a * 'b) t -> ('b * 'a) t) Variantslib.Variant.t
+                    pair:(('a t -> 'b t -> ('a * 'b) t) Variantslib.Variant.t
                             -> unit)
                       ->
-                      fst:((('a * 'b) t -> 'a t) Variantslib.Variant.t ->
-                             unit)
+                      swap:((('a * 'b) t -> ('b * 'a) t)
+                              Variantslib.Variant.t -> unit)
                         ->
-                        snd:((('a * 'b) t -> 'b t) Variantslib.Variant.t ->
+                        fst:((('a * 'b) t -> 'a t) Variantslib.Variant.t ->
                                unit)
-                          -> unit
+                          ->
+                          snd:((('a * 'b) t -> 'b t) Variantslib.Variant.t ->
+                                 unit)
+                            -> unit
           val to_rank : _ t -> int
           val to_name : _ t -> string
           val descriptions : (string * int) list
@@ -520,6 +520,7 @@ module Gadt :
   end =
   struct
     type _ t =
+      | Pure: 'a -> 'a t 
       | Bool: bool -> bool t 
       | Int: int -> int t 
       | Cond: {
@@ -532,6 +533,7 @@ module Gadt :
       | Snd: ('a * 'b) t -> 'b t [@@deriving variants]
     include
       struct
+        let pure v0 = Pure v0
         let bool v0 = Bool v0
         let int v0 = Int v0
         let cond ~cond:v0  ~true_branch:v1  ~false_branch:v2  =
@@ -540,89 +542,78 @@ module Gadt :
         let swap v0 = Swap v0
         let fst v0 = Fst v0
         let snd v0 = Snd v0
-        let is_bool (type _x__001_) (t : _x__001_ t) =
+        let is_pure (type _x__001_) (t : _x__001_ t) =
+          match t with | Pure _ -> true | _ -> false[@@warning "-4"]
+        let is_bool (type _x__002_) (t : _x__002_ t) =
           match t with | Bool _ -> true | _ -> false[@@warning "-4"]
         let is_int (type _x__003_) (t : _x__003_ t) =
           match t with | Int _ -> true | _ -> false[@@warning "-4"]
-        let is_cond (type _x__005_) (t : _x__005_ t) =
+        let is_cond (type _x__004_) (t : _x__004_ t) =
           match t with | Cond _ -> true | _ -> false[@@warning "-4"]
-        let is_pair (type _x__006_) (t : _x__006_ t) =
+        let is_pair (type _x__005_) (t : _x__005_ t) =
           match t with | Pair _ -> true | _ -> false[@@warning "-4"]
-        let is_swap (type _x__007_) (t : _x__007_ t) =
+        let is_swap (type _x__006_) (t : _x__006_ t) =
           match t with | Swap _ -> true | _ -> false[@@warning "-4"]
-        let is_fst (type _x__008_) (t : _x__008_ t) =
+        let is_fst (type _x__007_) (t : _x__007_ t) =
           match t with | Fst _ -> true | _ -> false[@@warning "-4"]
-        let is_snd (type _x__009_) (t : _x__009_ t) =
+        let is_snd (type _x__008_) (t : _x__008_ t) =
           match t with | Snd _ -> true | _ -> false[@@warning "-4"]
-        let bool_val (type _x__002_) (t : _x__002_ t) =
-          match t with
-          | Bool v0 -> Stdlib.Option.Some v0
-          | _ -> Stdlib.Option.None[@@warning "-4-56"]
-        let int_val (type _x__004_) (t : _x__004_ t) =
-          match t with
-          | Int v0 -> Stdlib.Option.Some v0
-          | _ -> Stdlib.Option.None[@@warning "-4-56"]
-        let cond_val (type a) (t : a t) =
-          match t with
-          | Cond { cond = v0; true_branch = v1; false_branch = v2 } ->
-              Stdlib.Option.Some
-                ((`cond v0), (`true_branch v1), (`false_branch v2))
-          | _ -> Stdlib.Option.None[@@warning "-4-56"]
-        let pair_val (type a) (type b) (t : (a * b) t) =
-          match t with
-          | Pair (v0, v1) -> Stdlib.Option.Some (v0, v1)
-          | _ -> Stdlib.Option.None[@@warning "-4-56"]
-        let swap_val (type a) (type b) (t : (b * a) t) =
-          match t with
-          | Swap v0 -> Stdlib.Option.Some v0
-          | _ -> Stdlib.Option.None[@@warning "-4-56"]
         module Variants =
           struct
+            let pure =
+              {
+                Variantslib.Variant.name = "Pure";
+                rank = 0;
+                constructor = pure
+              }
             let bool =
               {
                 Variantslib.Variant.name = "Bool";
-                rank = 0;
+                rank = 1;
                 constructor = bool
               }
             let int =
-              { Variantslib.Variant.name = "Int"; rank = 1; constructor = int
+              { Variantslib.Variant.name = "Int"; rank = 2; constructor = int
               }
             let cond =
               {
                 Variantslib.Variant.name = "Cond";
-                rank = 2;
+                rank = 3;
                 constructor = cond
               }
             let pair =
               {
                 Variantslib.Variant.name = "Pair";
-                rank = 3;
+                rank = 4;
                 constructor = pair
               }
             let swap =
               {
                 Variantslib.Variant.name = "Swap";
-                rank = 4;
+                rank = 5;
                 constructor = swap
               }
             let fst =
-              { Variantslib.Variant.name = "Fst"; rank = 5; constructor = fst
+              { Variantslib.Variant.name = "Fst"; rank = 6; constructor = fst
               }
             let snd =
-              { Variantslib.Variant.name = "Snd"; rank = 6; constructor = snd
+              { Variantslib.Variant.name = "Snd"; rank = 7; constructor = snd
               }
-            let fold ~init:init__  ~bool:bool_fun__  ~int:int_fun__ 
-              ~cond:cond_fun__  ~pair:pair_fun__  ~swap:swap_fun__ 
-              ~fst:fst_fun__  ~snd:snd_fun__  =
+            let fold ~init:init__  ~pure:pure_fun__  ~bool:bool_fun__ 
+              ~int:int_fun__  ~cond:cond_fun__  ~pair:pair_fun__ 
+              ~swap:swap_fun__  ~fst:fst_fun__  ~snd:snd_fun__  =
               snd_fun__
                 (fst_fun__
                    (swap_fun__
                       (pair_fun__
-                         (cond_fun__ (int_fun__ (bool_fun__ init__ bool) int)
+                         (cond_fun__
+                            (int_fun__
+                               (bool_fun__ (pure_fun__ init__ pure) bool) int)
                             cond) pair) swap) fst) snd
-            let iter ~bool:bool_fun__  ~int:int_fun__  ~cond:cond_fun__ 
-              ~pair:pair_fun__  ~swap:swap_fun__  ~fst:fst_fun__ 
-              ~snd:snd_fun__  =
+            let iter ~pure:pure_fun__  ~bool:bool_fun__  ~int:int_fun__ 
+              ~cond:cond_fun__  ~pair:pair_fun__  ~swap:swap_fun__ 
+              ~fst:fst_fun__  ~snd:snd_fun__  =
+              (pure_fun__ pure : unit);
               (bool_fun__ bool : unit);
               (int_fun__ int : unit);
               (cond_fun__ cond : unit);
@@ -630,17 +621,19 @@ module Gadt :
               (swap_fun__ swap : unit);
               (fst_fun__ fst : unit);
               (snd_fun__ snd : unit)
-            let to_rank (type _x__011_) (t : _x__011_ t) =
+            let to_rank (type _x__010_) (t : _x__010_ t) =
               match t with
-              | Bool _ -> 0
-              | Int _ -> 1
-              | Cond _ -> 2
-              | Pair _ -> 3
-              | Swap _ -> 4
-              | Fst _ -> 5
-              | Snd _ -> 6
-            let to_name (type _x__010_) (t : _x__010_ t) =
+              | Pure _ -> 0
+              | Bool _ -> 1
+              | Int _ -> 2
+              | Cond _ -> 3
+              | Pair _ -> 4
+              | Swap _ -> 5
+              | Fst _ -> 6
+              | Snd _ -> 7
+            let to_name (type _x__009_) (t : _x__009_ t) =
               match t with
+              | Pure _ -> "Pure"
               | Bool _ -> "Bool"
               | Int _ -> "Int"
               | Cond _ -> "Cond"
@@ -649,7 +642,8 @@ module Gadt :
               | Fst _ -> "Fst"
               | Snd _ -> "Snd"
             let descriptions =
-              [("Bool", 1);
+              [("Pure", 1);
+              ("Bool", 1);
               ("Int", 1);
               ("Cond", 3);
               ("Pair", 2);
@@ -667,7 +661,6 @@ module Gadt_arity :
       sig
         val eq : ('a, 'a) t
         val is_eq : (_, _) t -> bool
-        val eq_val : ('a, 'a) t -> unit option
         module Variants :
         sig
           val eq : ('a, 'a) t Variantslib.Variant.t
@@ -676,13 +669,6 @@ module Gadt_arity :
               eq:('acc__ -> ('a, 'a) t Variantslib.Variant.t -> 'acc__) ->
                 'acc__
           val iter : eq:(('a, 'a) t Variantslib.Variant.t -> unit) -> unit
-          val map :
-            (_, _) t ->
-              eq:(('a, 'a) t Variantslib.Variant.t -> 'result__) -> 'result__
-          val make_matcher :
-            eq:(('a, 'a) t Variantslib.Variant.t ->
-                  'acc__0 -> ((unit -> 'result__) * 'acc__1))
-              -> 'acc__0 -> (((_, _) t -> 'result__) * 'acc__1)
           val to_rank : (_, _) t -> int
           val to_name : (_, _) t -> string
           val descriptions : (string * int) list
@@ -695,27 +681,19 @@ module Gadt_arity :
     include
       struct
         let eq = Eq
-        let is_eq (type _x__012_) (type _x__013_)
-          (t : (_x__012_, _x__013_) t) = match t with | Eq -> true[@@warning
+        let is_eq (type _x__011_) (type _x__012_)
+          (t : (_x__011_, _x__012_) t) = match t with | Eq -> true[@@warning
                                                                     "-4"]
-        let eq_val (type a) (t : (a, a) t) =
-          match t with | Eq -> Stdlib.Option.Some ()[@@warning "-4-56"]
         module Variants =
           struct
             let eq =
               { Variantslib.Variant.name = "Eq"; rank = 0; constructor = eq }
             let fold ~init:init__  ~eq:eq_fun__  = eq_fun__ init__ eq
             let iter ~eq:eq_fun__  = (eq_fun__ eq : unit)
-            let map (type _x__018_) (type _x__019_)
-              (t__ : (_x__018_, _x__019_) t) ~eq:eq_fun__  =
-              match t__ with | Eq -> eq_fun__ eq
-            let make_matcher ~eq:eq_fun__  compile_acc__ =
-              let (eq_gen__, compile_acc__) = eq_fun__ eq compile_acc__ in
-              ((map ~eq:(fun _ -> eq_gen__ ())), compile_acc__)
-            let to_rank (type _x__016_) (type _x__017_)
-              (t : (_x__016_, _x__017_) t) = match t with | Eq -> 0
-            let to_name (type _x__014_) (type _x__015_)
-              (t : (_x__014_, _x__015_) t) = match t with | Eq -> "Eq"
+            let to_rank (type _x__015_) (type _x__016_)
+              (t : (_x__015_, _x__016_) t) = match t with | Eq -> 0
+            let to_name (type _x__013_) (type _x__014_)
+              (t : (_x__013_, _x__014_) t) = match t with | Eq -> "Eq"
             let descriptions = [("Eq", 0)]
           end
       end[@@ocaml.doc "@inline"][@@merlin.hide ]
