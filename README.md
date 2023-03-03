@@ -15,6 +15,8 @@ It provides corresponding functionality for variant types as
 Basic use of `[@@deriving variants]` and variantslib
 ----------------------------------------------------
 
+## Variants
+
 This code:
 
 ```ocaml
@@ -127,5 +129,26 @@ let all =
 Just like with `[@@deriving fields]`, if the type changes, the
 compiler will complain until this definition is updated as well.
 
-`ppx_variant_libs` works similarly on simple polymorphic variants
+## Polymorphic Variants
+
+`ppx_variants_conv` works similarly on simple polymorphic variants
 (without row variables and without inclusion).
+
+## GADTs
+
+`ppx_variants_conv` can be used with GADTs but with some limitations. 
+
+The preprocessor will not generate 'getter' functions i.e. functions to extract 
+the values from each constructor. As a consequence neither of the map or 
+make_matcher functions will be generated.
+
+Note that whilst it is possible to write the getter functions for _some_ GADT
+constructors, we cannot do so when the constructor has an existentially
+quantified type variable. Even without existentials, we also have the problem
+that when the GADT is non-regular, the resulting getter functions would also be 
+non-regular.
+
+The omission of the getter functions may be revisited if a specific use case 
+is identified.
+
+
