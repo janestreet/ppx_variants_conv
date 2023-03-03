@@ -296,9 +296,7 @@ module Gen_sig = struct
     else 
       let result_type = [%type:  'result__ ] in
       let f v =
-        let rhs = 
-          Option.value ~default:variant_type 
-          @@ V.return_ty_opt v in
+        let rhs = variant_type in
         let variant =
           let constructor_type = V.to_fun_type v ~rhs in
           Create.lambda_sig loc
@@ -319,9 +317,7 @@ module Gen_sig = struct
       let result_type = [%type:  'result__ ] in
       let acc i = ptyp_var ~loc ("acc__" ^ Int.to_string i) in
       let f i v =
-        let rhs = 
-          Option.value ~default:variant_type 
-          @@ Variant_constructor.return_ty_opt v in
+        let rhs = variant_type in
         let variant =
           [%type: [%t Variant_constructor.to_fun_type v ~rhs] Variantslib.Variant.t]
         in
@@ -486,22 +482,7 @@ module Gen_str = struct
             then [ true_case; case ~guard:None ~lhs:[%pat? _] ~rhs:false_expr ]
             else [ true_case ]
           in
-          if Variant_constructor.is_gadt v then
-            let (variant_ty,lbls) =  Core_type.newtypes variant_ty in
-            let pat_arg  = ppat_constraint ~loc (ppat_var ~loc {loc;txt="t"} ) variant_ty in
-            let ident = pexp_ident ~loc  {loc;txt=Longident.Lident "t"}  in
-            let match_expr = pexp_match ~loc ident cases in
-            let fun_expr  =pexp_fun ~loc Nolabel None pat_arg match_expr in 
-            let lbl_locs = List.map ~f:(fun txt -> {loc;txt}) lbls in
-            let body = with_newtypes loc lbl_locs fun_expr in
-            (* attributes are a pain to add and mean we can't use metaquot
-               so we repeat ourselves here rather than use [locally_abstract_match] *)
-            [%stri let [%p pvar ~loc name] =  
-              [%e body] 
-              [@@warning "-4"]
-            ]
-          else
-            [%stri let [%p pvar ~loc name] = [%e pexp_function ~loc cases] [@@warning "-4"]]
+          [%stri let [%p pvar ~loc name] = [%e pexp_function ~loc cases] [@@warning "-4"]]
         in
         let tester =
           let name = "is_" ^ uncapitalized in
@@ -615,17 +596,9 @@ module Gen_str = struct
         List.map variants ~f:(fun variant ->
           label_arg_fun loc (variant_name_to_string variant.V.name))
       in
-      let is_gadt = Option.value_map ~default:false ~f:V.is_gadt @@ List.hd variants in
-      let arg_pat, lbls = 
-        let var = ppat_var ~loc {loc;txt="t__"} in
-        if is_gadt then 
-          let ty, lbls = Core_type.newtypes variant_ty in
-          ppat_constraint ~loc var ty, lbls
-        else var, [] in  
+      let arg_pat = ppat_var ~loc {loc;txt="t__"} in
       let lambda = Create.lambda loc ((Nolabel, arg_pat) :: patterns) body in
-      let lbl_locs = List.map lbls ~f:(fun txt -> {loc;txt}) in
-      let body = List.fold_right lbl_locs ~init:lambda ~f:(pexp_newtype ~loc) in
-      Some [%stri let map = [%e body] ]
+      Some [%stri let map = [%e lambda] ]
     ;;
 
   let v_iter_fun loc variants =
