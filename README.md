@@ -15,7 +15,7 @@ It provides corresponding functionality for variant types as
 Basic use of `[@@deriving variants]` and variantslib
 ----------------------------------------------------
 
-## Variants
+### Variants
 
 This code:
 
@@ -129,12 +129,12 @@ let all =
 Just like with `[@@deriving fields]`, if the type changes, the
 compiler will complain until this definition is updated as well.
 
-## Polymorphic Variants
+### Polymorphic Variants
 
 `ppx_variants_conv` works similarly on simple polymorphic variants
 (without row variables and without inclusion).
 
-## GADTs
+### GADTs
 
 `ppx_variants_conv` can be used with GADTs but with some limitations. 
 
