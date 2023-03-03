@@ -425,7 +425,7 @@ module Gen_str = struct
     let body = with_newtypes loc lbl_locs fun_expr in
     [%stri let [%p pvar ~loc name] = [%e body]] 
 
-  let helpers_and_variants loc variant_ty variants =
+  let helpers_and_variants loc variants =
     let multiple_cases = List.length variants > 1 in
     let module V = Variant_constructor in
     let helpers, variants =
@@ -559,7 +559,7 @@ module Gen_str = struct
     [%stri let descriptions = [%e elist ~loc variant_names] ]
   ;;
 
-  let v_map_fun_opt loc variants variant_ty =
+  let v_map_fun_opt loc variants =
     let module V = Variant_constructor in
     (* We are currently not generating getter for GADTs which mean we can't
        generate [map] *)
@@ -698,7 +698,7 @@ module Gen_str = struct
 
   let variant ~variant_name ~variant_ty loc ty =
     let constructors, testers, getters, variants = 
-      helpers_and_variants loc variant_ty ty in
+      helpers_and_variants loc ty in
     constructors
     @ testers
     @ getters
@@ -714,7 +714,7 @@ module Gen_str = struct
                   @ List.filter_map ~f:Fn.id
                     [ Some (v_fold_fun loc ty)
                     ; Some (v_iter_fun loc ty)
-                    ; v_map_fun_opt loc ty variant_ty
+                    ; v_map_fun_opt loc ty
                     ; v_make_matcher_fun_opt loc ty
                     ; Some (v_to_rank loc ty variant_ty)
                     ; Some (v_to_name loc ty variant_ty)
