@@ -542,14 +542,22 @@ module Gadt :
         let swap v0 = Swap v0
         let fst v0 = Fst v0
         let snd v0 = Snd v0
-        let is_pure = function | Pure _ -> true | _ -> false[@@warning "-4"]
-        let is_bool = function | Bool _ -> true | _ -> false[@@warning "-4"]
-        let is_int = function | Int _ -> true | _ -> false[@@warning "-4"]
-        let is_cond = function | Cond _ -> true | _ -> false[@@warning "-4"]
-        let is_pair = function | Pair _ -> true | _ -> false[@@warning "-4"]
-        let is_swap = function | Swap _ -> true | _ -> false[@@warning "-4"]
-        let is_fst = function | Fst _ -> true | _ -> false[@@warning "-4"]
-        let is_snd = function | Snd _ -> true | _ -> false[@@warning "-4"]
+        let is_pure (type _x__001_) (t : _x__001_ t) =
+          match t with | Pure _ -> true | _ -> false[@@warning "-4"]
+        let is_bool (type _x__002_) (t : _x__002_ t) =
+          match t with | Bool _ -> true | _ -> false[@@warning "-4"]
+        let is_int (type _x__003_) (t : _x__003_ t) =
+          match t with | Int _ -> true | _ -> false[@@warning "-4"]
+        let is_cond (type _x__004_) (t : _x__004_ t) =
+          match t with | Cond _ -> true | _ -> false[@@warning "-4"]
+        let is_pair (type _x__005_) (t : _x__005_ t) =
+          match t with | Pair _ -> true | _ -> false[@@warning "-4"]
+        let is_swap (type _x__006_) (t : _x__006_ t) =
+          match t with | Swap _ -> true | _ -> false[@@warning "-4"]
+        let is_fst (type _x__007_) (t : _x__007_ t) =
+          match t with | Fst _ -> true | _ -> false[@@warning "-4"]
+        let is_snd (type _x__008_) (t : _x__008_ t) =
+          match t with | Snd _ -> true | _ -> false[@@warning "-4"]
         module Variants =
           struct
             let pure =
@@ -613,7 +621,7 @@ module Gadt :
               (swap_fun__ swap : unit);
               (fst_fun__ fst : unit);
               (snd_fun__ snd : unit)
-            let to_rank (type _x__002_) (t : _x__002_ t) =
+            let to_rank (type _x__010_) (t : _x__010_ t) =
               match t with
               | Pure _ -> 0
               | Bool _ -> 1
@@ -623,7 +631,7 @@ module Gadt :
               | Swap _ -> 5
               | Fst _ -> 6
               | Snd _ -> 7
-            let to_name (type _x__001_) (t : _x__001_ t) =
+            let to_name (type _x__009_) (t : _x__009_ t) =
               match t with
               | Pure _ -> "Pure"
               | Bool _ -> "Bool"
@@ -673,17 +681,19 @@ module Gadt_arity :
     include
       struct
         let eq = Eq
-        let is_eq = function | Eq -> true[@@warning "-4"]
+        let is_eq (type _x__011_) (type _x__012_)
+          (t : (_x__011_, _x__012_) t) = match t with | Eq -> true[@@warning
+                                                                    "-4"]
         module Variants =
           struct
             let eq =
               { Variantslib.Variant.name = "Eq"; rank = 0; constructor = eq }
             let fold ~init:init__  ~eq:eq_fun__  = eq_fun__ init__ eq
             let iter ~eq:eq_fun__  = (eq_fun__ eq : unit)
-            let to_rank (type _x__005_) (type _x__006_)
-              (t : (_x__005_, _x__006_) t) = match t with | Eq -> 0
-            let to_name (type _x__003_) (type _x__004_)
-              (t : (_x__003_, _x__004_) t) = match t with | Eq -> "Eq"
+            let to_rank (type _x__015_) (type _x__016_)
+              (t : (_x__015_, _x__016_) t) = match t with | Eq -> 0
+            let to_name (type _x__013_) (type _x__014_)
+              (t : (_x__013_, _x__014_) t) = match t with | Eq -> "Eq"
             let descriptions = [("Eq", 0)]
           end
       end[@@ocaml.doc "@inline"][@@merlin.hide ]

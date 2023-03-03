@@ -425,7 +425,7 @@ module Gen_str = struct
     let body = with_newtypes loc lbl_locs fun_expr in
     [%stri let [%p pvar ~loc name] = [%e body]] 
 
-  let helpers_and_variants loc variants =
+  let helpers_and_variants loc variant_ty variants =
     let multiple_cases = List.length variants > 1 in
     let module V = Variant_constructor in
     let helpers, variants =
@@ -482,7 +482,22 @@ module Gen_str = struct
             then [ true_case; case ~guard:None ~lhs:[%pat? _] ~rhs:false_expr ]
             else [ true_case ]
           in
-          [%stri let [%p pvar ~loc name] = [%e pexp_function ~loc cases] [@@warning "-4"]]
+          if Variant_constructor.is_gadt v then
+            let (variant_ty,lbls) =  Core_type.newtypes variant_ty in
+            let pat_arg  = ppat_constraint ~loc (ppat_var ~loc {loc;txt="t"} ) variant_ty in
+            let ident = pexp_ident ~loc  {loc;txt=Longident.Lident "t"}  in
+            let match_expr = pexp_match ~loc ident cases in
+            let fun_expr  =pexp_fun ~loc Nolabel None pat_arg match_expr in 
+            let lbl_locs = List.map ~f:(fun txt -> {loc;txt}) lbls in
+            let body = with_newtypes loc lbl_locs fun_expr in
+            (* attributes are a pain to add and mean we can't use metaquot
+               so we repeat ourselves here rather than use [locally_abstract_match] *)
+            [%stri let [%p pvar ~loc name] =  
+              [%e body] 
+              [@@warning "-4"]
+            ]
+          else
+            [%stri let [%p pvar ~loc name] = [%e pexp_function ~loc cases] [@@warning "-4"]]
         in
         let tester =
           let name = "is_" ^ uncapitalized in
@@ -698,7 +713,7 @@ module Gen_str = struct
 
   let variant ~variant_name ~variant_ty loc ty =
     let constructors, testers, getters, variants = 
-      helpers_and_variants loc ty in
+      helpers_and_variants loc variant_ty ty in
     constructors
     @ testers
     @ getters
