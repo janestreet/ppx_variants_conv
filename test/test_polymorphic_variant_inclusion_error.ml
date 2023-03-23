@@ -1,1 +1,0 @@
-type fail1 = [ Poly.t | `Blah ] [@@deriving variants]

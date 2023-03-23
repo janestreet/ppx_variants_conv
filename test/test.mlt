@@ -1,15 +1,20 @@
-open Variantslib
-;;
-#verbose true;;
+open Variantslib;;
+
+#verbose true
 
 (* to ensure we do not generate such warning *)
-[@@@ocaml.warning "+4"];;
+[@@@ocaml.warning "+4"]
 
 module Normal = struct
-  type t = Foo of int | Bar | Exception [@@deriving variants]
+  type t =
+    | Foo of int
+    | Bar
+    | Exception
+  [@@deriving variants]
 end
 
-[%%expect{|
+[%%expect
+  {|
 module Normal :
   sig
     type t = Foo of int | Bar | Exception
@@ -50,12 +55,19 @@ module Normal :
         val descriptions : (string * int) list
       end
   end
-|}];;
+|}]
 
 module Normal2 : sig
-  type t = Foo of int | Bar | Exception [@@deriving variants]
-end = Normal
-[%%expect{|
+  type t =
+    | Foo of int
+    | Bar
+    | Exception
+  [@@deriving variants]
+end =
+  Normal
+
+[%%expect
+  {|
 module Normal2 :
   sig
     type t = Foo of int | Bar | Exception
@@ -98,13 +110,20 @@ module Normal2 :
         val descriptions : (string * int) list
       end
   end
-|}];;
+|}]
 
 module Normal_inline_record = struct
-  type t =  Foo of { a : int; b : string} | Bar [@@deriving variants]
+  type t =
+    | Foo of
+        { a : int
+        ; b : string
+        }
+    | Bar
+  [@@deriving variants]
 end
 
-[%%expect{|
+[%%expect
+  {|
 module Normal_inline_record :
   sig
     type t = Foo of { a : int; b : string; } | Bar
@@ -139,13 +158,19 @@ module Normal_inline_record :
         val descriptions : (string * int) list
       end
   end
-|}];;
+|}]
 
 module Poly = struct
-  type t =  [ `Foo of int | `Bar | `Exception ] [@@deriving variants]
+  type t =
+    [ `Foo of int
+    | `Bar
+    | `Exception
+    ]
+  [@@deriving variants]
 end
 
-[%%expect{|
+[%%expect
+  {|
 module Poly :
   sig
     type t = [ `Bar | `Exception | `Foo of int ]
@@ -187,15 +212,22 @@ module Poly :
         val descriptions : (string * int) list
       end
   end
-|}];;
+|}]
 
 module Wildcard : sig
-  type _ t = A | B [@@deriving variants]
+  type _ t =
+    | A
+    | B
+  [@@deriving variants]
 end = struct
-  type _ t = A | B [@@deriving variants]
+  type _ t =
+    | A
+    | B
+  [@@deriving variants]
 end
 
-[%%expect{|
+[%%expect
+  {|
 module Wildcard :
   sig
     type _ t = A | B
@@ -228,28 +260,160 @@ module Wildcard :
         val descriptions : (string * int) list
       end
   end
-|}];;
+|}]
 
-type fail1 = [ Poly.t | `Blah ] [@@deriving variants]
-[%%expect{|
+module Gadt_no_existentials : sig
+  (* We test:
+     - mix of non GADT and GADT
+     - GADT where the result type is constrained
+     - GADT where using inline records
+     - GADT with polymorphic type vars
+  *)
+  type _ t =
+    | C0 of int
+    | C1 : bool -> unit t
+    | C2 : { a : bool } -> float t
+    | C3 : 'a -> 'a t
+  [@@deriving variants]
+end = struct
+  type _ t =
+    | C0 of int
+    | C1 : bool -> unit t
+    | C2 : { a : bool } -> float t
+    | C3 : 'a -> 'a t
+  [@@deriving variants]
+end
+
+[%%expect
+  {|
+module Gadt_no_existentials :
+  sig
+    type _ t =
+        C0 of int
+      | C1 : bool -> unit t
+      | C2 : { a : bool; } -> float t
+      | C3 : 'a -> 'a t
+    val c0 : int -> 'a t
+    val c1 : bool -> unit t
+    val c2 : a:bool -> float t
+    val c3 : 'a -> 'a t
+    val is_c0 : 'a t -> bool
+    val is_c1 : 'a t -> bool
+    val is_c2 : 'a t -> bool
+    val is_c3 : 'a t -> bool
+    val c0_val : 'a t -> int option
+    module Variants :
+      sig
+        val c0 : (int -> 'a t) Variant.t
+        val c1 : (bool -> unit t) Variant.t
+        val c2 : (a:bool -> float t) Variant.t
+        val c3 : ('a -> 'a t) Variant.t
+        val fold :
+          init:'acc__0 ->
+          c0:('acc__0 -> (int -> 'b t) Variant.t -> 'acc__1) ->
+          c1:('acc__1 -> (bool -> unit t) Variant.t -> 'acc__2) ->
+          c2:('acc__2 -> (a:bool -> float t) Variant.t -> 'acc__3) ->
+          c3:('acc__3 -> ('a -> 'a t) Variant.t -> 'acc__4) -> 'acc__4
+        val iter :
+          c0:((int -> 'b t) Variant.t -> unit) ->
+          c1:((bool -> unit t) Variant.t -> unit) ->
+          c2:((a:bool -> float t) Variant.t -> unit) ->
+          c3:(('a -> 'a t) Variant.t -> unit) -> unit
+        val to_rank : 'a t -> int
+        val to_name : 'a t -> string
+        val descriptions : (string * int) list
+      end
+  end
+|}]
+
+module Gadt_existentials : sig
+  (* We test:
+     - GADT with no payload (mostly there to avoid the type being too simple)
+     - GADT with existential type vars
+     - GADT where vars in the type declaration and the return type of a constructor clash
+  *)
+  type 'a t =
+    | C1 : bool t
+    | C2 : 'b * 'a -> 'b t
+  [@@deriving variants]
+end = struct
+  type 'a t =
+    | C1 : bool t
+    | C2 : 'b * 'a -> 'b t
+  [@@deriving variants]
+end
+
+[%%expect
+  {|
+module Gadt_existentials :
+  sig
+    type 'a t = C1 : bool t | C2 : 'b * 'a -> 'b t
+    val c1 : bool t
+    val c2 : 'b -> 'a -> 'b t
+    val is_c1 : 'a t -> bool
+    val is_c2 : 'a t -> bool
+    module Variants :
+      sig
+        val c1 : bool t Variant.t
+        val c2 : ('b -> 'a -> 'b t) Variant.t
+        val fold :
+          init:'acc__0 ->
+          c1:('acc__0 -> bool t Variant.t -> 'acc__1) ->
+          c2:('acc__1 -> ('b -> 'a -> 'b t) Variant.t -> 'acc__2) -> 'acc__2
+        val iter :
+          c1:(bool t Variant.t -> unit) ->
+          c2:(('b -> 'a -> 'b t) Variant.t -> unit) -> unit
+        val to_rank : 'a t -> int
+        val to_name : 'a t -> string
+        val descriptions : (string * int) list
+      end
+  end
+|}]
+
+type fail1 =
+  [ Poly.t
+  | `Blah
+  ]
+[@@deriving variants]
+
+[%%expect
+  {|
 Line _, characters _-_:
 Error: ppx_variants_conv: polymorphic variant inclusion is not supported
-|}];;
+|}]
 
-type fail2 = [> `Foo | `Bar ] [@@deriving variants]
-[%%expect{|
+type fail2 =
+  [> `Foo
+  | `Bar
+  ]
+[@@deriving variants]
+
+[%%expect
+  {|
 Line _, characters _-_:
 Error: ppx_variants_conv: polymorphic variants with a row variable are not supported
-|}];;
+|}]
 
-type fail3 = [< `Foo | `Bar ] [@@deriving variants]
-[%%expect{|
+type fail3 =
+  [< `Foo
+  | `Bar
+  ]
+[@@deriving variants]
+
+[%%expect
+  {|
 Line _, characters _-_:
 Error: ppx_variants_conv: polymorphic variants with a row variable are not supported
-|}];;
+|}]
 
-type fail4 = [< `Foo | `Bar > `Foo ] [@@deriving variants]
-[%%expect{|
+type fail4 =
+  [< `Foo
+  | `Bar > `Foo
+  ]
+[@@deriving variants]
+
+[%%expect
+  {|
 Line _, characters _-_:
 Error: ppx_variants_conv: polymorphic variants with a row variable are not supported
-|}];;
+|}]

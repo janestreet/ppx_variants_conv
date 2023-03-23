@@ -1,1 +1,0 @@
-type fail3 = [< `Foo | `Bar ] [@@deriving variants]
