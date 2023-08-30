@@ -3,7 +3,6 @@
    is especially important to not use polymorphic comparisons, since we are moving more
    and more to code that doesn't have them in scope. *)
 
-
 open Base
 open Ppxlib
 open Ast_builder.Default
@@ -625,8 +624,8 @@ module Gen_str = struct
               acc
               [ ( Labelled variant_name
                 , match V.args variant with
-                | [] -> [%expr fun _ -> [%e evar ~loc (variant_name ^ "_gen__")] ()]
-                | _ :: _ -> [%expr fun _ -> [%e evar ~loc (variant_name ^ "_gen__")]] )
+                  | [] -> [%expr fun _ -> [%e evar ~loc (variant_name ^ "_gen__")] ()]
+                  | _ :: _ -> [%expr fun _ -> [%e evar ~loc (variant_name ^ "_gen__")]] )
               ])
         in
         [%expr [%e map], compile_acc__]
