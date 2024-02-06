@@ -1,3 +1,10 @@
-(executables (names test) (libraries) (preprocess (pps ppx_variants_conv)))
+(executables
+ (modes byte exe)
+ (names test)
+ (libraries)
+ (preprocess
+  (pps ppx_variants_conv)))
 
-(alias (name DEFAULT) (deps test.ml.pp test.mli.pp))
+(alias
+ (name DEFAULT)
+ (deps test.ml.pp test.mli.pp))
