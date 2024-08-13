@@ -164,7 +164,11 @@ module Inspect = struct
   let constructor cd : Variant_constructor.t =
     let kind =
       match cd.pcd_args with
-      | Pcstr_tuple pcd_args -> `Normal (pcd_args, cd.pcd_res)
+      | Pcstr_tuple pcd_args ->
+        let core_types =
+          List.map pcd_args ~f:Ppxlib_jane.Shim.Pcstr_tuple_arg.to_core_type
+        in
+        `Normal (core_types, cd.pcd_res)
       | Pcstr_record fields -> `Normal_inline_record (fields, cd.pcd_res)
     in
     { name = cd.pcd_name.txt; loc = cd.pcd_name.loc; kind }
