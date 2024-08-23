@@ -22,3 +22,13 @@ module Poly : sig
     ]
   [@@deriving variants]
 end
+
+module Unboxed : sig
+  type t =
+    | Foo
+    | Bar of
+        { x : float#
+        ; y : float#
+        } [@variants.non_value]
+  [@@deriving variants]
+end

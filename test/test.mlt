@@ -370,6 +370,55 @@ module Gadt_existentials :
   end
 |}]
 
+module Unboxed : sig
+  type t =
+    | Foo of { foo : float# } [@variants.non_value]
+    | Bar of float# [@variants.non_value]
+  [@@deriving variants]
+end = struct
+  type t =
+    | Foo of { foo : float# } [@variants.non_value]
+    | Bar of float# [@variants.non_value]
+  [@@deriving variants]
+end
+
+[%%expect
+  {|
+module Unboxed :
+  sig
+    type t = Foo of { foo : float#; } | Bar of float#
+    val foo : foo:float# -> t
+    val bar : float# -> t
+    val is_foo : t -> bool
+    val is_bar : t -> bool
+    module Variants :
+      sig
+        val foo : (foo:float# -> t) Variant.t
+        val bar : (float# -> t) Variant.t
+        val fold :
+          init:'acc__0 ->
+          foo:('acc__0 -> (foo:float# -> t) Variant.t -> 'acc__1) ->
+          bar:('acc__1 -> (float# -> t) Variant.t -> 'acc__2) -> 'acc__2
+        val iter :
+          foo:((foo:float# -> t) Variant.t -> unit) ->
+          bar:((float# -> t) Variant.t -> unit) -> unit
+        val map :
+          t ->
+          foo:((foo:float# -> t) Variant.t -> foo:float# -> 'result__) ->
+          bar:((float# -> t) Variant.t -> float# -> 'result__) -> 'result__
+        val make_matcher :
+          foo:((foo:float# -> t) Variant.t ->
+               'acc__0 -> (foo:float# -> 'result__) * 'acc__1) ->
+          bar:((float# -> t) Variant.t ->
+               'acc__1 -> (float# -> 'result__) * 'acc__2) ->
+          'acc__0 -> (t -> 'result__) * 'acc__2
+        val to_rank : t -> int
+        val to_name : t -> string
+        val descriptions : (string * int) list
+      end
+  end
+|}]
+
 type fail1 =
   [ Poly.t
   | `Blah
