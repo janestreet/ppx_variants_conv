@@ -140,3 +140,11 @@ constructors, because it's not clear which type such functions should
 have. This may be revisited in the future. As a consequence neither
 `Variants.map` nor `Variants.make_matcher` functions will be generated
 either.
+
+# Layouts
+
+Variant clauses (constructors and polymorphic variant rows) can be annotated with
+`[@variants.non_value]`, `[@non_value]` for short, to elide generating getters and
+functions based on getters. This feature is used in versions of the compiler that support
+_layouts_, as types with non-value layouts do not currently fit in the type schema used
+for getter functions.

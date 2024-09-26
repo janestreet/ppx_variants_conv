@@ -28,6 +28,7 @@ module Variant_constructor = struct
   type t =
     { name : string
     ; loc : Location.t
+    ; has_non_value_flag : bool
     ; kind :
         [ `Normal of core_type list * core_type option
         | `Normal_inline_record of label_declaration list * core_type option
@@ -58,7 +59,7 @@ module Variant_constructor = struct
      but not the expressivity of GADTs. It's not clearly useful though. *)
   let is_gadt t = Option.is_some (return_ty_opt t)
 
-  let pattern_without_binding { name; loc; kind } =
+  let pattern_without_binding { name; loc; kind; has_non_value_flag = _ } =
     match kind with
     | `Normal ([], _) -> ppat_construct ~loc (Located.lident ~loc name) None
     | `Normal (_ :: _, _) | `Normal_inline_record _ ->
@@ -79,10 +80,21 @@ module Variant_constructor = struct
     Create.lambda_sig t.loc arg_types body_ty
   ;;
 
+  let has_getter t =
+    (* We cannot generate a getter for GADTs in the case that we have existentially
+       quantified type vars. Further we can't generate _regular_ getter functions
+       when the GADT is non-regular. For the time being we skip generating getters
+       for GADTs altogether.
+
+       We also do not currently support generating getters for types with non-value
+       layouts. *)
+    not (t.has_non_value_flag || is_gadt t)
+  ;;
+
   let to_getter_type t ~lhs:input_type =
-    if is_gadt t (* see getter_opt below for why *)
-    then None
-    else (
+    match has_getter t with
+    | false -> None
+    | true ->
       let variant_for_label (ld : label_declaration) =
         ptyp_variant
           ~loc:ld.pld_loc
@@ -100,10 +112,10 @@ module Variant_constructor = struct
         | `Normal_inline_record (fields, _) ->
           ptyp_tuple ~loc (List.map fields ~f:variant_for_label)
       in
-      Some (ptyp_arrow ~loc Nolabel input_type [%type: [%t result_type] option]))
+      Some (ptyp_arrow ~loc Nolabel input_type [%type: [%t result_type] option])
   ;;
 
-  let to_getter_case { loc; name; kind } =
+  let to_getter_case { loc; name; kind; has_non_value_flag = _ } =
     let pat, idents =
       match kind with
       | `Polymorphic None -> ppat_variant ~loc name None, []
@@ -149,12 +161,19 @@ let variant_name_to_string v =
 ;;
 
 module Inspect = struct
+  let non_value_row_field = Attribute.declare_flag "variants.non_value" Rtag
+
+  let non_value_constructor_declaration =
+    Attribute.declare_flag "variants.non_value" Constructor_declaration
+  ;;
+
   let row_field loc rf : Variant_constructor.t =
+    let has_non_value_flag = Attribute.has_flag non_value_row_field rf in
     match rf.prf_desc with
     | Rtag ({ txt = name; _ }, true, _) | Rtag ({ txt = name; _ }, _, []) ->
-      { name; loc; kind = `Polymorphic None }
+      { name; loc; has_non_value_flag; kind = `Polymorphic None }
     | Rtag ({ txt = name; _ }, false, tp :: _) ->
-      { name; loc; kind = `Polymorphic (Some tp) }
+      { name; loc; has_non_value_flag; kind = `Polymorphic (Some tp) }
     | Rinherit _ ->
       Location.raise_errorf
         ~loc
@@ -162,6 +181,7 @@ module Inspect = struct
   ;;
 
   let constructor cd : Variant_constructor.t =
+    let has_non_value_flag = Attribute.has_flag non_value_constructor_declaration cd in
     let kind =
       match cd.pcd_args with
       | Pcstr_tuple pcd_args ->
@@ -171,7 +191,7 @@ module Inspect = struct
         `Normal (core_types, cd.pcd_res)
       | Pcstr_record fields -> `Normal_inline_record (fields, cd.pcd_res)
     in
-    { name = cd.pcd_name.txt; loc = cd.pcd_name.loc; kind }
+    { name = cd.pcd_name.txt; loc = cd.pcd_name.loc; has_non_value_flag; kind }
   ;;
 
   let type_decl td =
@@ -483,11 +503,7 @@ module Gen_str = struct
           match_fun ~name ~true_case ~false_expr:[%expr false]
         in
         let getter_opt =
-          (* We cannot generate a getter for GADTs in the case that we have existentially
-             quantified type vars. Further we can't generate _regular_ getter functions
-             when the GADT is non-regular. For the time being we skip generating getters
-             for GADTs altogether *)
-          if Variant_constructor.is_gadt v
+          if not (Variant_constructor.has_getter v)
           then None
           else (
             let name = uncapitalized ^ "_val" in
