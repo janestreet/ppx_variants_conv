@@ -402,12 +402,12 @@ module Gen_str = struct
         inherit [label list] Ast_traverse.fold_map as super
 
         method! core_type core_type acc =
-          match core_type.ptyp_desc with
-          | Ptyp_var label ->
+          match Ppxlib_jane.Shim.Core_type_desc.of_parsetree core_type.ptyp_desc with
+          | Ptyp_var (label, _) ->
             let loc = core_type.ptyp_loc in
             let ty = ptyp_constr ~loc { loc; txt = Longident.Lident label } [] in
             ty, label :: acc
-          | Ptyp_any ->
+          | Ptyp_any _ ->
             let label = gen_symbol () in
             let loc = core_type.ptyp_loc in
             let ty = ptyp_constr ~loc { loc; txt = Longident.Lident label } [] in
