@@ -196,7 +196,7 @@ module Inspect = struct
 
   let type_decl td =
     let loc = td.ptype_loc in
-    match td.ptype_kind with
+    match Ppxlib_jane.Shim.Type_kind.of_parsetree td.ptype_kind with
     | Ptype_variant cds ->
       let cds = List.map cds ~f:constructor in
       let names_as_string = Hashtbl.create (module String) in
@@ -212,7 +212,8 @@ module Inspect = struct
             name'
             s);
       cds
-    | Ptype_record _ | Ptype_open -> raise_unsupported loc
+    | Ptype_record _ | Ptype_record_unboxed_product _ | Ptype_open ->
+      raise_unsupported loc
     | Ptype_abstract ->
       (match td.ptype_manifest with
        | Some { ptyp_desc = Ptyp_variant (row_fields, Closed, None); _ } ->
