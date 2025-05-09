@@ -161,7 +161,7 @@ module Normal_inline_record :
 |}]
 
 module Poly = struct
-  type t =
+  type 'a t =
     [ `Foo of int
     | `Bar
     | `Exception
@@ -173,7 +173,7 @@ end
   {|
 module Poly :
   sig
-    type t = [ `Bar | `Exception | `Foo of int ]
+    type 'a t = [ `Bar | `Exception | `Foo of int ]
     val foo : 'a -> [> `Foo of 'a ]
     val bar : [> `Bar ]
     val exception_ : [> `Exception ]
@@ -231,32 +231,35 @@ end
 module Wildcard :
   sig
     type _ t = A | B
-    val a : 'a t
-    val b : 'a t
-    val is_a : 'a t -> bool
-    val is_b : 'a t -> bool
-    val a_val : 'a t -> unit option
-    val b_val : 'a t -> unit option
+    val a : 'param__001_ t
+    val b : 'param__001_ t
+    val is_a : 'param__001_ t -> bool
+    val is_b : 'param__001_ t -> bool
+    val a_val : 'param__001_ t -> unit option
+    val b_val : 'param__001_ t -> unit option
     module Variants :
       sig
-        val a : 'a t Variant.t
-        val b : 'a t Variant.t
+        val a : 'param__001_ t Variant.t
+        val b : 'param__001_ t Variant.t
         val fold :
           init:'acc__0 ->
-          a:('acc__0 -> 'a t Variant.t -> 'acc__1) ->
-          b:('acc__1 -> 'b t Variant.t -> 'acc__2) -> 'acc__2
+          a:('acc__0 -> 'param__001_ t Variant.t -> 'acc__1) ->
+          b:('acc__1 -> 'param__001_ t Variant.t -> 'acc__2) -> 'acc__2
         val iter :
-          a:('a t Variant.t -> unit) -> b:('b t Variant.t -> unit) -> unit
+          a:('param__001_ t Variant.t -> unit) ->
+          b:('param__001_ t Variant.t -> unit) -> unit
         val map :
-          'a t ->
-          a:('b t Variant.t -> 'result__) ->
-          b:('c t Variant.t -> 'result__) -> 'result__
+          'param__001_ t ->
+          a:('param__001_ t Variant.t -> 'result__) ->
+          b:('param__001_ t Variant.t -> 'result__) -> 'result__
         val make_matcher :
-          a:('a t Variant.t -> 'acc__0 -> (unit -> 'result__) * 'acc__1) ->
-          b:('b t Variant.t -> 'acc__1 -> (unit -> 'result__) * 'acc__2) ->
-          'acc__0 -> ('c t -> 'result__) * 'acc__2
-        val to_rank : 'a t -> int
-        val to_name : 'a t -> string
+          a:('param__001_ t Variant.t ->
+             'acc__0 -> (unit -> 'result__) * 'acc__1) ->
+          b:('param__001_ t Variant.t ->
+             'acc__1 -> (unit -> 'result__) * 'acc__2) ->
+          'acc__0 -> ('param__001_ t -> 'result__) * 'acc__2
+        val to_rank : 'param__001_ t -> int
+        val to_name : 'param__001_ t -> string
         val descriptions : (string * int) list
       end
   end
@@ -293,34 +296,35 @@ module Gadt_no_existentials :
       | C1 : bool -> unit t
       | C2 : { a : bool; } -> float t
       | C3 : 'a -> 'a t
-    val c0 : int -> 'a t
+    val c0 : int -> 'param__008_ t
     val c1 : bool -> unit t
     val c2 : a:bool -> float t
-    val c3 : 'a -> 'a t
-    val is_c0 : 'a t -> bool
-    val is_c1 : 'a t -> bool
-    val is_c2 : 'a t -> bool
-    val is_c3 : 'a t -> bool
-    val c0_val : 'a t -> int option
+    val c3 : 'a__009_ -> 'a__009_ t
+    val is_c0 : 'param__008_ t -> bool
+    val is_c1 : 'param__008_ t -> bool
+    val is_c2 : 'param__008_ t -> bool
+    val is_c3 : 'param__008_ t -> bool
+    val c0_val : 'param__008_ t -> int option
     module Variants :
       sig
-        val c0 : (int -> 'a t) Variant.t
+        val c0 : (int -> 'param__008_ t) Variant.t
         val c1 : (bool -> unit t) Variant.t
         val c2 : (a:bool -> float t) Variant.t
-        val c3 : ('a -> 'a t) Variant.t
+        val c3 : ('a__009_ -> 'a__009_ t) Variant.t
         val fold :
           init:'acc__0 ->
-          c0:('acc__0 -> (int -> 'b t) Variant.t -> 'acc__1) ->
+          c0:('acc__0 -> (int -> 'param__008_ t) Variant.t -> 'acc__1) ->
           c1:('acc__1 -> (bool -> unit t) Variant.t -> 'acc__2) ->
           c2:('acc__2 -> (a:bool -> float t) Variant.t -> 'acc__3) ->
-          c3:('acc__3 -> ('a -> 'a t) Variant.t -> 'acc__4) -> 'acc__4
+          c3:('acc__3 -> ('a__009_ -> 'a__009_ t) Variant.t -> 'acc__4) ->
+          'acc__4
         val iter :
-          c0:((int -> 'b t) Variant.t -> unit) ->
+          c0:((int -> 'param__008_ t) Variant.t -> unit) ->
           c1:((bool -> unit t) Variant.t -> unit) ->
           c2:((a:bool -> float t) Variant.t -> unit) ->
-          c3:(('a -> 'a t) Variant.t -> unit) -> unit
-        val to_rank : 'a t -> int
-        val to_name : 'a t -> string
+          c3:(('a__009_ -> 'a__009_ t) Variant.t -> unit) -> unit
+        val to_rank : 'param__008_ t -> int
+        val to_name : 'param__008_ t -> string
         val descriptions : (string * int) list
       end
   end
@@ -349,20 +353,22 @@ module Gadt_existentials :
   sig
     type 'a t = C1 : bool t | C2 : 'b * 'a -> 'b t
     val c1 : bool t
-    val c2 : 'b -> 'a -> 'b t
+    val c2 : 'b__012_ -> 'a__013_ -> 'b__012_ t
     val is_c1 : 'a t -> bool
     val is_c2 : 'a t -> bool
     module Variants :
       sig
         val c1 : bool t Variant.t
-        val c2 : ('b -> 'a -> 'b t) Variant.t
+        val c2 : ('b__012_ -> 'a__013_ -> 'b__012_ t) Variant.t
         val fold :
           init:'acc__0 ->
           c1:('acc__0 -> bool t Variant.t -> 'acc__1) ->
-          c2:('acc__1 -> ('b -> 'a -> 'b t) Variant.t -> 'acc__2) -> 'acc__2
+          c2:('acc__1 ->
+              ('b__012_ -> 'a__013_ -> 'b__012_ t) Variant.t -> 'acc__2) ->
+          'acc__2
         val iter :
           c1:(bool t Variant.t -> unit) ->
-          c2:(('b -> 'a -> 'b t) Variant.t -> unit) -> unit
+          c2:(('b__012_ -> 'a__013_ -> 'b__012_ t) Variant.t -> unit) -> unit
         val to_rank : 'a t -> int
         val to_name : 'a t -> string
         val descriptions : (string * int) list
@@ -414,6 +420,115 @@ module Unboxed :
           'acc__0 -> (t -> 'result__) * 'acc__2
         val to_rank : t -> int
         val to_name : t -> string
+        val descriptions : (string * int) list
+      end
+  end
+|}]
+
+module Gadt_non_values : sig
+  (* This tests a bunch of edge cases:
+     - a named and unnamed type parameter
+     - mix of non GADT and GADT constructors
+     - GADT where the result type is constrained
+     - GADT where using inline records
+     - GADT with polymorphic type vars
+     - GADT cases whose type variable names overlap and are incompatible
+  *)
+  type ('a : any, 'b, _ : any) t =
+    | C0 of ('b, 'b, 'a) t
+    | C1 : 'a. { a : 'a } -> ('a, unit, unit) t
+    | C2 : ('c : float64). bool -> ('c, float, float) t
+    | C3 : ('a : any). bool -> ('a, float, float) t
+    | C4 : 'a -> ('a, _, _) t
+  [@@deriving variants]
+end = struct
+  type ('a : any, 'b, _ : any) t =
+    | C0 of ('b, 'b, 'a) t
+    | C1 : 'a. { a : 'a } -> ('a, unit, unit) t
+    | C2 : ('c : float64). bool -> ('c, float, float) t
+    | C3 : ('a : any). bool -> ('a, float, float) t
+    | C4 : 'a -> ('a, _, _) t
+  [@@deriving variants]
+end
+
+[%%expect
+  {|
+module Gadt_non_values :
+  sig
+    type ('a : any, 'b, _ : any) t =
+        C0 of ('b, 'b, 'a) t
+      | C1 : { a : 'a; } -> ('a, unit, unit) t
+      | C2 : ('c : float64). bool -> ('c, float, float) t
+      | C3 : ('a : any). bool -> ('a, float, float) t
+      | C4 : 'a -> ('a, 'd, 'e) t
+    val c0 :
+      'b ('a : any) ('param__026_ : any).
+        ('b, 'b, 'a) t -> ('a, 'b, 'param__026_) t
+    val c1 : a:'a__027_ -> ('a__027_, unit, unit) t
+    val c2 : ('c__028_ : float64). bool -> ('c__028_, float, float) t
+    val c3 : ('a__029_ : any). bool -> ('a__029_, float, float) t
+    val c4 : 'a__030_ -> ('a__030_, 'unnamed__031_, 'unnamed__032_) t
+    val is_c0 :
+      ('a : any) 'b ('param__026_ : any). ('a, 'b, 'param__026_) t -> bool
+    val is_c1 :
+      ('a : any) 'b ('param__026_ : any). ('a, 'b, 'param__026_) t -> bool
+    val is_c2 :
+      ('a : any) 'b ('param__026_ : any). ('a, 'b, 'param__026_) t -> bool
+    val is_c3 :
+      ('a : any) 'b ('param__026_ : any). ('a, 'b, 'param__026_) t -> bool
+    val is_c4 :
+      ('a : any) 'b ('param__026_ : any). ('a, 'b, 'param__026_) t -> bool
+    val c0_val :
+      ('a : any) 'b ('param__026_ : any).
+        ('a, 'b, 'param__026_) t -> ('b, 'b, 'a) t option
+    module Variants :
+      sig
+        val c0 :
+          'b ('a : any) ('param__026_ : any).
+            (('b, 'b, 'a) t -> ('a, 'b, 'param__026_) t) Variant.t
+        val c1 : (a:'a__027_ -> ('a__027_, unit, unit) t) Variant.t
+        val c2 :
+          ('c__028_ : float64).
+            (bool -> ('c__028_, float, float) t) Variant.t
+        val c3 :
+          ('a__029_ : any). (bool -> ('a__029_, float, float) t) Variant.t
+        val c4 :
+          ('a__030_ -> ('a__030_, 'unnamed__031_, 'unnamed__032_) t)
+          Variant.t
+        val fold :
+          'acc__0 'b ('a : any) ('param__026_ : any) 'acc__1 'a__027_ 'acc__2
+            ('c__028_ : float64) 'acc__3 ('a__029_ : any) 'acc__4 'a__030_
+            'unnamed__031_ 'unnamed__032_ 'acc__5.
+            init:'acc__0 ->
+            c0:('acc__0 ->
+                (('b, 'b, 'a) t -> ('a, 'b, 'param__026_) t) Variant.t ->
+                'acc__1) ->
+            c1:('acc__1 ->
+                (a:'a__027_ -> ('a__027_, unit, unit) t) Variant.t -> 'acc__2) ->
+            c2:('acc__2 ->
+                (bool -> ('c__028_, float, float) t) Variant.t -> 'acc__3) ->
+            c3:('acc__3 ->
+                (bool -> ('a__029_, float, float) t) Variant.t -> 'acc__4) ->
+            c4:('acc__4 ->
+                ('a__030_ -> ('a__030_, 'unnamed__031_, 'unnamed__032_) t)
+                Variant.t -> 'acc__5) ->
+            'acc__5
+        val iter :
+          'b ('a : any) ('param__026_ : any) 'a__027_ ('c__028_ : float64)
+            ('a__029_ : any) 'a__030_ 'unnamed__031_ 'unnamed__032_.
+            c0:((('b, 'b, 'a) t -> ('a, 'b, 'param__026_) t) Variant.t ->
+                unit) ->
+            c1:((a:'a__027_ -> ('a__027_, unit, unit) t) Variant.t -> unit) ->
+            c2:((bool -> ('c__028_, float, float) t) Variant.t -> unit) ->
+            c3:((bool -> ('a__029_, float, float) t) Variant.t -> unit) ->
+            c4:(('a__030_ -> ('a__030_, 'unnamed__031_, 'unnamed__032_) t)
+                Variant.t -> unit) ->
+            unit
+        val to_rank :
+          ('a : any) 'b ('param__026_ : any). ('a, 'b, 'param__026_) t -> int
+        val to_name :
+          ('a : any) 'b ('param__026_ : any).
+            ('a, 'b, 'param__026_) t -> string
         val descriptions : (string * int) list
       end
   end
