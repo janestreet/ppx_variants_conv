@@ -464,7 +464,7 @@ module Gen_str = struct
           let body =
             if Variant_constructor.is_gadt v
             then locally_abstract_match loc cases ~variant_ty
-            else pexp_function ~loc cases
+            else pexp_function_cases ~loc cases
           in
           [%stri let [%p pvar ~loc name] = [%e body] [@@warning "-4"]]
         in
@@ -677,7 +677,7 @@ module Gen_str = struct
     let body =
       if List.exists variants ~f:Variant_constructor.is_gadt
       then locally_abstract_match loc cases ~variant_ty
-      else pexp_function ~loc cases
+      else pexp_function_cases ~loc cases
     in
     [%stri let to_rank = [%e body]]
   ;;
@@ -689,7 +689,7 @@ module Gen_str = struct
     let body =
       if List.exists variants ~f:Variant_constructor.is_gadt
       then locally_abstract_match loc cases ~variant_ty
-      else pexp_function ~loc cases
+      else pexp_function_cases ~loc cases
     in
     [%stri let to_name = [%e body]]
   ;;
