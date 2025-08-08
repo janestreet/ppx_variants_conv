@@ -50,7 +50,7 @@ module Normal :
           bar:(t Variant.t -> 'c -> (unit -> 'b) * 'd) ->
           exception_:(t Variant.t -> 'd -> (unit -> 'b) * 'e) ->
           'a -> (t -> 'b) * 'e
-        val to_rank : t -> int
+        val to_rank : local_ t -> int
         val to_name : t -> string
         val descriptions : (string * int) list
       end
@@ -105,11 +105,131 @@ module Normal2 :
           bar:(t Variant.t -> 'acc__1 -> (unit -> 'result__) * 'acc__2) ->
           exception_:(t Variant.t -> 'acc__2 -> (unit -> 'result__) * 'acc__3) ->
           'acc__0 -> (t -> 'result__) * 'acc__3
-        val to_rank : t -> int
+        val to_rank : local_ t -> int
         val to_name : t -> string
         val descriptions : (string * int) list
       end
   end
+|}]
+
+module Normal_portable : sig
+  type t =
+    | Foo of int
+    | Bar
+    | Exception
+  [@@deriving variants ~portable]
+end = struct
+  type t =
+    | Foo of int
+    | Bar
+    | Exception
+  [@@deriving variants]
+end
+
+[%%expect
+  {|
+module Normal_portable :
+  sig
+    type t = Foo of int | Bar | Exception
+    val foo : int -> t @@ portable
+    val bar : t @@ portable
+    val exception_ : t @@ portable
+    val is_foo : t -> bool @@ portable
+    val is_bar : t -> bool @@ portable
+    val is_exception_ : t -> bool @@ portable
+    val foo_val : t -> int option @@ portable
+    val bar_val : t -> unit option @@ portable
+    val exception__val : t -> unit option @@ portable
+    module Variants :
+      sig
+        val foo : (int -> t) Variant.t @@ portable
+        val bar : t Variant.t @@ portable
+        val exception_ : t Variant.t @@ portable
+        val fold :
+          init:'acc__0 ->
+          foo:('acc__0 -> (int -> t) Variant.t -> 'acc__1) ->
+          bar:('acc__1 -> t Variant.t -> 'acc__2) ->
+          exception_:('acc__2 -> t Variant.t -> 'acc__3) -> 'acc__3 @@
+          portable
+        val iter :
+          foo:((int -> t) Variant.t -> unit) ->
+          bar:(t Variant.t -> unit) ->
+          exception_:(t Variant.t -> unit) -> unit @@ portable
+        val map :
+          t ->
+          foo:((int -> t) Variant.t -> int -> 'result__) ->
+          bar:(t Variant.t -> 'result__) ->
+          exception_:(t Variant.t -> 'result__) -> 'result__ @@ portable
+        val make_matcher :
+          foo:((int -> t) Variant.t ->
+               'acc__0 -> (int -> 'result__) * 'acc__1) ->
+          bar:(t Variant.t -> 'acc__1 -> (unit -> 'result__) * 'acc__2) ->
+          exception_:(t Variant.t -> 'acc__2 -> (unit -> 'result__) * 'acc__3) ->
+          'acc__0 -> (t -> 'result__) * 'acc__3 @@ portable
+        val to_rank : local_ t -> int @@ portable
+        val to_name : t -> string @@ portable
+        val descriptions : (string * int) list @@ portable
+      end
+  end
+|}]
+
+module Normal_portable_error = struct
+  type t =
+    | Foo of Normal2.t
+    | Bar
+    | Exception
+  [@@deriving variants ~portable]
+end
+
+[%%expect
+  {|
+Line _, characters _-_:
+Error: Ppxlib.Deriving: generator 'variants' doesn't accept argument
+       'portable'
+|}]
+
+module Mutable_portable_error : sig
+  type t =
+    | Foo
+    | Bar of int ref
+  [@@deriving variants ~portable]
+end = struct
+  type t =
+    | Foo
+    | Bar of int ref
+  [@@deriving variants]
+end
+
+[%%expect
+  {|
+Line _, characters _-_:
+Error: Signature mismatch:
+       ...
+       ...
+       In module Variants:
+       Values do not match:
+         val fold :
+           init:'a ->
+           foo:('a -> t Variant.t @ contended -> 'b) ->
+           bar:('b -> (int ref -> t) Variant.t -> 'c) -> 'c @@ portable
+       is not included in
+         val fold :
+           init:'acc__0 ->
+           foo:('acc__0 -> t Variant.t -> 'acc__1) ->
+           bar:('acc__1 -> (int ref -> t) Variant.t -> 'acc__2) -> 'acc__2 @@
+           portable
+       The type
+         init:'a ->
+         foo:('a -> t Variant.t @ contended -> 'b) ->
+         bar:('b -> (int ref -> t) Variant.t -> 'c) -> 'c
+       is not compatible with the type
+         init:'a ->
+         foo:('a -> t Variant.t -> 'b) ->
+         bar:('b -> (int ref -> t) Variant.t -> 'd) -> 'd
+       Type t Variant.t @ contended -> 'b is not compatible with type
+         t Variant.t -> 'b
+       File "test.mlt", lines 199-202, characters 2-33: Expected declaration
+       File "test.mlt", lines 204-207, characters 2-23: Actual declaration
 |}]
 
 module Normal_inline_record = struct
@@ -153,7 +273,7 @@ module Normal_inline_record :
                'a -> (a:int -> b:string -> 'b) * 'c) ->
           bar:(t Variant.t -> 'c -> (unit -> 'b) * 'd) ->
           'a -> (t -> 'b) * 'd
-        val to_rank : t -> int
+        val to_rank : local_ t -> int
         val to_name : t -> string
         val descriptions : (string * int) list
       end
@@ -207,7 +327,7 @@ module Poly :
           bar:([> `Bar ] Variant.t -> 'e -> (unit -> 'd) * 'f) ->
           exception_:([> `Exception ] Variant.t -> 'f -> (unit -> 'd) * 'g) ->
           'b -> ([< `Bar | `Exception | `Foo of 'c ] -> 'd) * 'g
-        val to_rank : [< `Bar | `Exception | `Foo of 'a ] -> int
+        val to_rank : local_ [< `Bar | `Exception | `Foo of 'a ] -> int
         val to_name : [< `Bar | `Exception | `Foo of 'a ] -> string
         val descriptions : (string * int) list
       end
@@ -258,7 +378,7 @@ module Wildcard :
           b:('param__001_ t Variant.t ->
              'acc__1 -> (unit -> 'result__) * 'acc__2) ->
           'acc__0 -> ('param__001_ t -> 'result__) * 'acc__2
-        val to_rank : 'param__001_ t -> int
+        val to_rank : local_ 'param__001_ t -> int
         val to_name : 'param__001_ t -> string
         val descriptions : (string * int) list
       end
@@ -323,7 +443,7 @@ module Gadt_no_existentials :
           c1:((bool -> unit t) Variant.t -> unit) ->
           c2:((a:bool -> float t) Variant.t -> unit) ->
           c3:(('a__009_ -> 'a__009_ t) Variant.t -> unit) -> unit
-        val to_rank : 'param__008_ t -> int
+        val to_rank : local_ 'param__008_ t -> int
         val to_name : 'param__008_ t -> string
         val descriptions : (string * int) list
       end
@@ -369,7 +489,7 @@ module Gadt_existentials :
         val iter :
           c1:(bool t Variant.t -> unit) ->
           c2:(('b__012_ -> 'a__013_ -> 'b__012_ t) Variant.t -> unit) -> unit
-        val to_rank : 'a t -> int
+        val to_rank : local_ 'a t -> int
         val to_name : 'a t -> string
         val descriptions : (string * int) list
       end
@@ -418,7 +538,7 @@ module Unboxed :
           bar:((float# -> t) Variant.t ->
                'acc__1 -> (float# -> 'result__) * 'acc__2) ->
           'acc__0 -> (t -> 'result__) * 'acc__2
-        val to_rank : t -> int
+        val to_rank : local_ t -> int
         val to_name : t -> string
         val descriptions : (string * int) list
       end
@@ -525,7 +645,8 @@ module Gadt_non_values :
                 Variant.t -> unit) ->
             unit
         val to_rank :
-          ('a : any) 'b ('param__026_ : any). ('a, 'b, 'param__026_) t -> int
+          ('a : any) 'b ('param__026_ : any).
+            local_ ('a, 'b, 'param__026_) t -> int
         val to_name :
           ('a : any) 'b ('param__026_ : any).
             ('a, 'b, 'param__026_) t -> string

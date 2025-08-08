@@ -286,7 +286,7 @@ let name_params params =
 module Gen_sig = struct
   let label_arg _loc name ty = Asttypes.Labelled (variant_name_to_string name), ty
 
-  let val_ ~loc ~univars name type_ =
+  let val_ ~loc ~univars name type_ ~portable =
     let type_ =
       match univars with
       | [] -> type_
@@ -296,7 +296,15 @@ module Gen_sig = struct
         in
         Ppxlib_jane.Ast_builder.Default.ptyp_poly ~loc univars type_
     in
-    psig_value ~loc (value_description ~loc ~name:(Located.mk ~loc name) ~type_ ~prim:[])
+    let modalities = if portable then [ Ppxlib_jane.Modality "portable" ] else [] in
+    psig_value
+      ~loc
+      (Ppxlib_jane.Ast_builder.Default.value_description
+         ~loc
+         ~name:(Located.mk ~loc name)
+         ~type_
+         ~prim:[]
+         ~modalities)
   ;;
 
   let variant_arg f ~variant_type (v : Variant_constructor.t) =
@@ -308,7 +316,7 @@ module Gen_sig = struct
     label_arg loc v.Variant_constructor.name (f ~variant)
   ;;
 
-  let v_fold_fun ~variant_type ~params loc variants =
+  let v_fold_fun ~variant_type ~params loc variants ~portable =
     let acc i = ptyp_var ~loc ("acc__" ^ Int.to_string i) in
     let f i v =
       variant_arg
@@ -348,7 +356,7 @@ module Gen_sig = struct
     let univars =
       List.init (List.length variants + 1) ~f:acc @ params @ vars_in_gadt_cases
     in
-    val_ ~loc ~univars "fold" t
+    val_ ~loc ~univars "fold" t ~portable
   ;;
 
   let v_iter_fun ~variant_type ~params loc variants =
@@ -361,7 +369,7 @@ module Gen_sig = struct
     val_ ~loc ~univars "iter" t
   ;;
 
-  let v_map_fun_opt ~variant_type ~params loc variants =
+  let v_map_fun_opt ~variant_type ~params loc variants ~portable =
     let module V = Variant_constructor in
     if List.exists variants ~f:V.is_gadt
     then None
@@ -380,10 +388,10 @@ module Gen_sig = struct
       let types = List.map variants ~f in
       let t = Create.lambda_sig loc ((Nolabel, variant_type) :: types) result_type in
       let univars = [%type: 'result__] :: params in
-      Some (val_ ~loc ~univars "map" t))
+      Some (val_ ~loc ~univars "map" t ~portable))
   ;;
 
-  let v_make_matcher_fun_opt ~variant_type ~params loc variants =
+  let v_make_matcher_fun_opt ~variant_type ~params loc variants ~portable =
     let module V = Variant_constructor in
     if List.exists variants ~f:V.is_gadt
     then None
@@ -416,7 +424,7 @@ module Gen_sig = struct
       let univars =
         ([%type: 'result__] :: List.init (List.length variants + 1) ~f:acc) @ params
       in
-      Some (val_ ~loc ~univars "make_matcher" t))
+      Some (val_ ~loc ~univars "make_matcher" t ~portable))
   ;;
 
   let v_descriptions ~variant_type:_ loc _ =
@@ -431,7 +439,7 @@ module Gen_sig = struct
     val_ ~loc "to_name" [%type: [%t variant_type] -> string]
   ;;
 
-  let variant ~variant_type ~ty_name ~params loc variants =
+  let variant ~variant_type ~ty_name ~params ~portable loc variants =
     let tester_type = [%type: [%t variant_type] -> bool] in
     let helpers, variant_defs =
       List.unzip
@@ -442,12 +450,17 @@ module Gen_sig = struct
            let constructor_type = V.to_fun_type v ~rhs:return_ty in
            let getter_type_opt = V.to_getter_type v ~lhs:return_ty in
            let name = variant_name_to_string v.V.name in
-           ( ( val_ ~loc ~univars name constructor_type
-             , val_ ~loc ~univars ("is_" ^ name) tester_type
-             , Option.map getter_type_opt ~f:(val_ ~loc ~univars:params (name ^ "_val"))
-             )
-           , val_ ~loc ~univars name [%type: [%t constructor_type] Variantslib.Variant.t]
-           )))
+           ( ( val_ ~loc ~univars name constructor_type ~portable
+             , val_ ~loc ~univars ("is_" ^ name) tester_type ~portable
+             , Option.map
+                 getter_type_opt
+                 ~f:(val_ ~loc ~univars:params (name ^ "_val") ~portable) )
+           , val_
+               ~loc
+               ~univars
+               name
+               [%type: [%t constructor_type] Variantslib.Variant.t]
+               ~portable )))
     in
     let constructors, testers, getters = List.unzip3 helpers in
     constructors
@@ -463,18 +476,41 @@ module Gen_sig = struct
                   ~loc
                   (variant_defs
                    @ List.filter_opt
-                       [ Some (v_fold_fun ~variant_type ~params loc variants)
-                       ; Some (v_iter_fun ~variant_type ~params loc variants)
-                       ; v_map_fun_opt ~variant_type ~params loc variants
-                       ; v_make_matcher_fun_opt ~variant_type ~params loc variants
-                       ; Some (v_to_rank_fun ~variant_type ~univars:params loc variants)
-                       ; Some (v_to_name_fun ~variant_type ~univars:params loc variants)
-                       ; Some (v_descriptions ~variant_type ~univars:params loc variants)
+                       [ Some (v_fold_fun ~variant_type ~params loc variants ~portable)
+                       ; Some (v_iter_fun ~variant_type ~params loc variants ~portable)
+                       ; v_map_fun_opt ~variant_type ~params loc variants ~portable
+                       ; v_make_matcher_fun_opt
+                           ~variant_type
+                           ~params
+                           loc
+                           variants
+                           ~portable
+                       ; Some
+                           (v_to_rank_fun
+                              ~variant_type
+                              ~univars:params
+                              loc
+                              variants
+                              ~portable)
+                       ; Some
+                           (v_to_name_fun
+                              ~variant_type
+                              ~univars:params
+                              loc
+                              variants
+                              ~portable)
+                       ; Some
+                           (v_descriptions
+                              ~variant_type
+                              ~univars:params
+                              loc
+                              variants
+                              ~portable)
                        ])))
       ]
   ;;
 
-  let variants_of_td td =
+  let variants_of_td td portable =
     let ty_name = td.ptype_name.txt in
     let loc = td.ptype_loc in
     let params = name_params td.ptype_params in
@@ -483,10 +519,10 @@ module Gen_sig = struct
         Ppxlib_jane.Ast_builder.Default.Latest.ptyp_var ~loc name.txt jkind)
     in
     let variant_type = ptyp_constr ~loc (Located.map lident td.ptype_name) params in
-    variant ~variant_type ~ty_name ~params loc (Inspect.type_decl td)
+    variant ~variant_type ~ty_name ~params ~portable loc (Inspect.type_decl td)
   ;;
 
-  let generate ~loc ~path:_ (rec_flag, tds) =
+  let generate ~loc ~path:_ (rec_flag, tds) portable =
     (match rec_flag with
      | Nonrecursive ->
        Location.raise_errorf
@@ -494,7 +530,7 @@ module Gen_sig = struct
          "nonrec is not compatible with the `ppx_variants_conv' preprocessor"
      | _ -> ());
     match tds with
-    | [ td ] -> variants_of_td td
+    | [ td ] -> variants_of_td td portable
     | _ -> Location.raise_errorf ~loc "ppx_variants_conv: not supported"
   ;;
 end
@@ -786,7 +822,7 @@ module Gen_str = struct
       then locally_abstract_match loc cases ~td
       else pexp_function ~loc cases
     in
-    [%stri let to_rank = [%e body]]
+    [%stri let to_rank : _ -> _ = [%e body]]
   ;;
 
   let v_to_name loc variants ~td =
@@ -850,5 +886,6 @@ let variants =
   Deriving.add
     "variants"
     ~str_type_decl:(Deriving.Generator.make_noarg Gen_str.generate)
-    ~sig_type_decl:(Deriving.Generator.make_noarg Gen_sig.generate)
+    ~sig_type_decl:
+      (Deriving.Generator.make Deriving.Args.(empty +> flag "portable") Gen_sig.generate)
 ;;

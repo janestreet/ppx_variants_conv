@@ -6,5 +6,5 @@
   (pps ppx_variants_conv)))
 
 (alias
- (name DEFAULT)
+ (name default)
  (deps test.ml.pp test.mli.pp))
