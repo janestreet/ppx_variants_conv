@@ -211,7 +211,7 @@ Error: Signature mismatch:
          val fold :
            init:'a ->
            foo:('a -> t Variant.t @ contended -> 'b) ->
-           bar:('b -> (int ref -> t) Variant.t -> 'c) -> 'c @@ portable
+           bar:('b -> (int ref -> t) Variant.t -> 'c) -> 'c
        is not included in
          val fold :
            init:'acc__0 ->
