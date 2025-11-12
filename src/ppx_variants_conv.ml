@@ -296,7 +296,7 @@ module Gen_sig = struct
         in
         Ppxlib_jane.Ast_builder.Default.ptyp_poly ~loc univars type_
     in
-    let modalities = if portable then [ Ppxlib_jane.Modality "portable" ] else [] in
+    let modalities = if portable then Ppxlib_jane.Shim.Modalities.portable ~loc else [] in
     psig_value
       ~loc
       (Ppxlib_jane.Ast_builder.Default.value_description
