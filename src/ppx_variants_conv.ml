@@ -1,7 +1,7 @@
-(* Generated code should depend on the environment in scope as little as possible.
-   E.g. rather than [foo = []] do [match foo with [] ->], to eliminate the use of [=].  It
-   is especially important to not use polymorphic comparisons, since we are moving more
-   and more to code that doesn't have them in scope. *)
+(* Generated code should depend on the environment in scope as little as possible. E.g.
+   rather than [foo = []] do [match foo with [] ->], to eliminate the use of [=]. It is
+   especially important to not use polymorphic comparisons, since we are moving more and
+   more to code that doesn't have them in scope. *)
 
 open Base
 open Ppxlib
@@ -84,9 +84,9 @@ module Variant_constructor = struct
 
   let has_getter t =
     (* We cannot generate a getter for GADTs in the case that we have existentially
-       quantified type vars. Further we can't generate _regular_ getter functions
-       when the GADT is non-regular. For the time being we skip generating getters
-       for GADTs altogether.
+       quantified type vars. Further we can't generate _regular_ getter functions when the
+       GADT is non-regular. For the time being we skip generating getters for GADTs
+       altogether.
 
        We also do not currently support generating getters for types with non-value
        layouts. *)
@@ -331,10 +331,11 @@ module Gen_sig = struct
     (* Universally quantifying all type variables allows us to give jkind annotations to
        type variables. There are a few sources of type variables here.
 
-        1. Non-gadt constructors share the type variables of the type constructor, [params].
-        2. GADT constuctors each have their own scope, whose variables are alpha renamed
-            then stored in each [Variant_constructor.t]'s [vars] field.
-        3. We use [acc] to create new variables.
+       1. Non-gadt constructors share the type variables of the type constructor,
+          [params].
+       2. GADT constuctors each have their own scope, whose variables are alpha renamed
+          then stored in each [Variant_constructor.t]'s [vars] field.
+       3. We use [acc] to create new variables.
 
        For example, consider [type 'a t = A of 'a | B : 'a -> 'a t].
 
@@ -682,8 +683,7 @@ module Gen_str = struct
 
   let v_map_fun_opt loc variants =
     let module V = Variant_constructor in
-    (* We are currently not generating getter for GADTs which mean we can't
-       generate [map] *)
+    (* We are currently not generating getter for GADTs which mean we can't generate [map] *)
     if List.exists variants ~f:V.is_gadt
     then None
     else (
@@ -753,8 +753,8 @@ module Gen_str = struct
 
   let v_make_matcher_fun_opt loc variants =
     let module V = Variant_constructor in
-    (* We are currently not generating getter for GADTs which mean we can't
-       generate [map] and consequently can't generate a matcher either *)
+    (* We are currently not generating getter for GADTs which mean we can't generate [map]
+       and consequently can't generate a matcher either *)
     if List.exists variants ~f:V.is_gadt
     then None
     else (

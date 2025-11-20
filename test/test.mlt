@@ -228,8 +228,8 @@ Error: Signature mismatch:
          bar:('b -> (int ref -> t) Variant.t -> 'd) -> 'd
        Type t Variant.t @ contended -> 'b is not compatible with type
          t Variant.t -> 'b
-       File "test.mlt", lines 199-202, characters 2-33: Expected declaration
-       File "test.mlt", lines 204-207, characters 2-23: Actual declaration
+       File "test.mlt", lines 197-200, characters 2-33: Expected declaration
+       File "test.mlt", lines 202-205, characters 2-23: Actual declaration
 |}]
 
 module Normal_inline_record = struct
