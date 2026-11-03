@@ -5,12 +5,454 @@ open Variantslib;;
 (* to ensure we do not generate such warning *)
 [@@@ocaml.warning "+4"]
 
+module Without_fold = struct
+  type t = A [@@deriving variants]
+end
+
+[%%expect
+  {|
+module Without_fold :
+  sig
+    type t = A
+    val a : t
+    val is_a : t -> bool
+    val a_val : t -> unit option
+    module Variants :
+      sig
+        val a : t Variant.t
+        val to_rank : t @ local -> int
+        val to_name : t -> string
+        val descriptions : (string * int) list
+      end
+  end
+|}]
+
+module Without_fold_signature : sig
+  type t = A [@@deriving variants]
+end =
+  Without_fold
+
+[%%expect
+  {|
+module Without_fold_signature :
+  sig
+    type t = A
+    val a : t
+    val is_a : t -> bool
+    val a_val : t -> unit option
+    module Variants :
+      sig
+        val a : t Variant.t
+        val to_rank : t @ local -> int
+        val to_name : t -> string
+        val descriptions : (string * int) list
+      end
+  end
+|}]
+
+module With_iter = struct
+  type t = A [@@deriving variants ~iter]
+
+  let count = ref 0
+  let () = Variants.iter ~a:(fun _ -> incr count)
+end
+
+[%%expect
+  {|
+module With_iter :
+  sig
+    type t = A
+    val a : t
+    val is_a : t -> bool
+    val a_val : t -> unit option
+    module Variants :
+      sig
+        val a : t Variant.t
+        val iter : a:(t Variant.t -> unit) -> unit
+        val to_rank : t @ local -> int
+        val to_name : t -> string
+        val descriptions : (string * int) list
+      end
+    val count : int ref
+  end
+|}]
+
+module With_iter_signature : sig
+  type t = A [@@deriving variants ~iter]
+end =
+  With_iter
+
+[%%expect
+  {|
+module With_iter_signature :
+  sig
+    type t = A
+    val a : t
+    val is_a : t -> bool
+    val a_val : t -> unit option
+    module Variants :
+      sig
+        val a : t Variant.t
+        val iter : a:(t Variant.t -> unit) -> unit
+        val to_rank : t @ local -> int
+        val to_name : t -> string
+        val descriptions : (string * int) list
+      end
+  end
+|}]
+
+module With_fold = struct
+  type t = A [@@deriving variants ~fold]
+
+  let count = Variants.fold ~init:0 ~a:(fun count _ -> count + 1)
+end
+
+[%%expect
+  {|
+module With_fold :
+  sig
+    type t = A
+    val a : t
+    val is_a : t -> bool
+    val a_val : t -> unit option
+    module Variants :
+      sig
+        val a : t Variant.t
+        val fold : init:'a -> a:('a -> t Variant.t -> 'b) -> 'b
+        val to_rank : t @ local -> int
+        val to_name : t -> string
+        val descriptions : (string * int) list
+      end
+    val count : int
+  end
+|}]
+
+module With_fold_signature : sig
+  type t = A [@@deriving variants ~fold]
+end =
+  With_fold
+
+[%%expect
+  {|
+module With_fold_signature :
+  sig
+    type t = A
+    val a : t
+    val is_a : t -> bool
+    val a_val : t -> unit option
+    module Variants :
+      sig
+        val a : t Variant.t
+        val fold :
+          init:'acc__0 -> a:('acc__0 -> t Variant.t -> 'acc__1) -> 'acc__1
+        val to_rank : t @ local -> int
+        val to_name : t -> string
+        val descriptions : (string * int) list
+      end
+  end
+|}]
+
+module With_matcher = struct
+  type t = A [@@deriving variants ~make_matcher]
+
+  let matcher = Variants.make_matcher ~a:(fun _ () -> (fun () -> ()), ()) () |> fst
+end
+
+[%%expect
+  {|
+module With_matcher :
+  sig
+    type t = A
+    val a : t
+    val is_a : t -> bool
+    val a_val : t -> unit option
+    module Variants :
+      sig
+        val a : t Variant.t
+        val make_matcher :
+          a:(t Variant.t -> 'a -> (unit -> 'b) * 'c) -> 'a -> (t -> 'b) * 'c
+        val to_rank : t @ local -> int
+        val to_name : t -> string
+        val descriptions : (string * int) list
+      end
+    val matcher : t -> unit
+  end
+|}]
+
+module With_matcher_signature : sig
+  type t = A [@@deriving variants ~make_matcher]
+end =
+  With_matcher
+
+[%%expect
+  {|
+module With_matcher_signature :
+  sig
+    type t = A
+    val a : t
+    val is_a : t -> bool
+    val a_val : t -> unit option
+    module Variants :
+      sig
+        val a : t Variant.t
+        val make_matcher :
+          a:(t Variant.t -> 'acc__0 -> (unit -> 'result__) * 'acc__1) ->
+          'acc__0 -> (t -> 'result__) * 'acc__1
+        val to_rank : t @ local -> int
+        val to_name : t -> string
+        val descriptions : (string * int) list
+      end
+  end
+|}]
+
+module With_map = struct
+  type t =
+    | Nullary
+    | Tuple of int * string
+    | Inline_record of { value : int }
+  [@@deriving variants ~map]
+
+  let describe =
+    Variants.map
+      ~nullary:(fun _ -> "nullary")
+      ~tuple:(fun _ int string -> Int.to_string int ^ string)
+      ~inline_record:(fun _ ~value -> Int.to_string value)
+  ;;
+end
+
+[%%expect
+  {|
+module With_map :
+  sig
+    type t =
+        Nullary
+      | Tuple of int * string
+      | Inline_record of { value : int; }
+    val nullary : t
+    val tuple : int -> string -> t
+    val inline_record : value:int -> t
+    val is_nullary : t -> bool
+    val is_tuple : t -> bool
+    val is_inline_record : t -> bool
+    val nullary_val : t -> unit option
+    val tuple_val : t -> (int * string) option
+    val inline_record_val : t -> [> `value of int ] option
+    module Variants :
+      sig
+        val nullary : t Variant.t
+        val tuple : (int -> string -> t) Variant.t
+        val inline_record : (value:int -> t) Variant.t
+        val map :
+          t ->
+          nullary:(t Variant.t -> 'a) ->
+          tuple:((int -> string -> t) Variant.t -> int -> string -> 'a) ->
+          inline_record:((value:int -> t) Variant.t -> value:int -> 'a) -> 'a
+        val to_rank : t @ local -> int
+        val to_name : t -> string
+        val descriptions : (string * int) list
+      end
+    val describe : t -> string
+  end
+|}]
+
+module With_map_signature : sig
+  type t =
+    | Nullary
+    | Tuple of int * string
+    | Inline_record of { value : int }
+  [@@deriving variants ~map]
+end =
+  With_map
+
+[%%expect
+  {|
+module With_map_signature :
+  sig
+    type t =
+        Nullary
+      | Tuple of int * string
+      | Inline_record of { value : int; }
+    val nullary : t
+    val tuple : int -> string -> t
+    val inline_record : value:int -> t
+    val is_nullary : t -> bool
+    val is_tuple : t -> bool
+    val is_inline_record : t -> bool
+    val nullary_val : t -> unit option
+    val tuple_val : t -> (int * string) option
+    val inline_record_val : t -> [ `value of int ] option
+    module Variants :
+      sig
+        val nullary : t Variant.t
+        val tuple : (int -> string -> t) Variant.t
+        val inline_record : (value:int -> t) Variant.t
+        val map :
+          t ->
+          nullary:(t Variant.t -> 'result__) ->
+          tuple:((int -> string -> t) Variant.t -> int -> string -> 'result__) ->
+          inline_record:((value:int -> t) Variant.t -> value:int -> 'result__) ->
+          'result__
+        val to_rank : t @ local -> int
+        val to_name : t -> string
+        val descriptions : (string * int) list
+      end
+  end
+|}]
+
+module Matcher_shapes = struct
+  type t =
+    | Nullary
+    | Tuple of int * string
+    | Inline_record of { value : int }
+  [@@deriving variants ~make_matcher]
+
+  let matcher =
+    Variants.make_matcher
+      ~nullary:(fun _ () -> (fun () -> "nullary"), ())
+      ~tuple:(fun _ () -> (fun int string -> Int.to_string int ^ string), ())
+      ~inline_record:(fun _ () -> (fun ~value -> Int.to_string value), ())
+      ()
+    |> fst
+  ;;
+
+  let results = List.map matcher [ Nullary; Tuple (1, "x"); Inline_record { value = 2 } ]
+
+  let () =
+    match results with
+    | [ "nullary"; "1x"; "2" ] -> ()
+    | _ -> assert false
+  ;;
+end
+
+[%%expect
+  {|
+module Matcher_shapes :
+  sig
+    type t =
+        Nullary
+      | Tuple of int * string
+      | Inline_record of { value : int; }
+    val nullary : t
+    val tuple : int -> string -> t
+    val inline_record : value:int -> t
+    val is_nullary : t -> bool
+    val is_tuple : t -> bool
+    val is_inline_record : t -> bool
+    val nullary_val : t -> unit option
+    val tuple_val : t -> (int * string) option
+    val inline_record_val : t -> [> `value of int ] option
+    module Variants :
+      sig
+        val nullary : t Variant.t
+        val tuple : (int -> string -> t) Variant.t
+        val inline_record : (value:int -> t) Variant.t
+        val make_matcher :
+          nullary:(t Variant.t -> 'a -> (unit -> 'b) * 'c) ->
+          tuple:((int -> string -> t) Variant.t ->
+                 'c -> (int -> string -> 'b) * 'd) ->
+          inline_record:((value:int -> t) Variant.t ->
+                         'd -> (value:int -> 'b) * 'e) ->
+          'a -> (t -> 'b) * 'e
+        val to_rank : t @ local -> int
+        val to_name : t -> string
+        val descriptions : (string * int) list
+      end
+    val matcher : t -> string
+    val results : string list
+  end
+|}]
+
+module Poly_matcher = struct
+  type t =
+    [ `Nullary
+    | `Tuple of int * string
+    ]
+  [@@deriving variants ~make_matcher]
+
+  let matcher =
+    Variants.make_matcher
+      ~nullary:(fun _ () -> (fun () -> "nullary"), ())
+      ~tuple:(fun _ () -> (fun (int, string) -> Int.to_string int ^ string), ())
+      ()
+    |> fst
+  ;;
+
+  let () =
+    match matcher `Nullary, matcher (`Tuple (3, "y")) with
+    | "nullary", "3y" -> ()
+    | _ -> assert false
+  ;;
+end
+
+[%%expect
+  {|
+module Poly_matcher :
+  sig
+    type t = [ `Nullary | `Tuple of int * string ]
+    val nullary : [> `Nullary ]
+    val tuple : 'a -> [> `Tuple of 'a ]
+    val is_nullary : [> `Nullary ] -> bool
+    val is_tuple : [> `Tuple of 'a ] -> bool
+    val nullary_val : [> `Nullary ] -> unit option
+    val tuple_val : [> `Tuple of 'a ] -> 'a option
+    module Variants :
+      sig
+        val nullary : [> `Nullary ] Variant.t
+        val tuple : ('a -> [> `Tuple of 'a ]) Variant.t
+        val make_matcher :
+          nullary:([> `Nullary ] Variant.t -> 'a -> (unit -> 'b) * 'c) ->
+          tuple:(('d -> [> `Tuple of 'd ]) Variant.t -> 'c -> ('e -> 'b) * 'f) ->
+          'a -> ([< `Nullary | `Tuple of 'e ] -> 'b) * 'f
+        val to_rank : [< `Nullary | `Tuple of 'a ] @ local -> int
+        val to_name : [< `Nullary | `Tuple of 'a ] -> string
+        val descriptions : (string * int) list
+      end
+    val matcher : [ `Nullary | `Tuple of int * string ] -> string
+  end
+|}]
+
+module Combined_flags = struct
+  type t = A [@@deriving variants ~make_matcher ~fold ~iter ~map]
+
+  let mapped = Variants.map A ~a:(fun _ -> ())
+  let folded = Variants.fold ~init:0 ~a:(fun acc _ -> acc + 1)
+  let iterated = Variants.iter ~a:(fun _ -> ())
+  let matcher = Variants.make_matcher ~a:(fun _ () -> (fun () -> ()), ()) () |> fst
+end
+
+[%%expect
+  {|
+module Combined_flags :
+  sig
+    type t = A
+    val a : t
+    val is_a : t -> bool
+    val a_val : t -> unit option
+    module Variants :
+      sig
+        val a : t Variant.t
+        val fold : init:'a -> a:('a -> t Variant.t -> 'b) -> 'b
+        val iter : a:(t Variant.t -> unit) -> unit
+        val map : t -> a:(t Variant.t -> 'a) -> 'a
+        val make_matcher :
+          a:(t Variant.t -> 'a -> (unit -> 'b) * 'c) -> 'a -> (t -> 'b) * 'c
+        val to_rank : t @ local -> int
+        val to_name : t -> string
+        val descriptions : (string * int) list
+      end
+    val mapped : unit
+    val folded : int
+    val iterated : unit
+    val matcher : t -> unit
+  end
+|}]
+
 module Normal = struct
   type t =
     | Foo of int
     | Bar
     | Exception
-  [@@deriving variants]
+  [@@deriving variants ~fold]
 end
 
 [%%expect
@@ -37,19 +479,6 @@ module Normal :
           foo:('a -> (int -> t) Variant.t -> 'b) ->
           bar:('b -> t Variant.t -> 'c) ->
           exception_:('c -> t Variant.t -> 'd) -> 'd
-        val iter :
-          foo:((int -> t) Variant.t -> unit) ->
-          bar:(t Variant.t -> unit) ->
-          exception_:(t Variant.t -> unit) -> unit
-        val map :
-          t ->
-          foo:((int -> t) Variant.t -> int -> 'a) ->
-          bar:(t Variant.t -> 'a) -> exception_:(t Variant.t -> 'a) -> 'a
-        val make_matcher :
-          foo:((int -> t) Variant.t -> 'a -> (int -> 'b) * 'c) ->
-          bar:(t Variant.t -> 'c -> (unit -> 'b) * 'd) ->
-          exception_:(t Variant.t -> 'd -> (unit -> 'b) * 'e) ->
-          'a -> (t -> 'b) * 'e
         val to_rank : t @ local -> int
         val to_name : t -> string
         val descriptions : (string * int) list
@@ -62,7 +491,7 @@ module Normal2 : sig
     | Foo of int
     | Bar
     | Exception
-  [@@deriving variants]
+  [@@deriving variants ~fold]
 end =
   Normal
 
@@ -90,21 +519,6 @@ module Normal2 :
           foo:('acc__0 -> (int -> t) Variant.t -> 'acc__1) ->
           bar:('acc__1 -> t Variant.t -> 'acc__2) ->
           exception_:('acc__2 -> t Variant.t -> 'acc__3) -> 'acc__3
-        val iter :
-          foo:((int -> t) Variant.t -> unit) ->
-          bar:(t Variant.t -> unit) ->
-          exception_:(t Variant.t -> unit) -> unit
-        val map :
-          t ->
-          foo:((int -> t) Variant.t -> int -> 'result__) ->
-          bar:(t Variant.t -> 'result__) ->
-          exception_:(t Variant.t -> 'result__) -> 'result__
-        val make_matcher :
-          foo:((int -> t) Variant.t ->
-               'acc__0 -> (int -> 'result__) * 'acc__1) ->
-          bar:(t Variant.t -> 'acc__1 -> (unit -> 'result__) * 'acc__2) ->
-          exception_:(t Variant.t -> 'acc__2 -> (unit -> 'result__) * 'acc__3) ->
-          'acc__0 -> (t -> 'result__) * 'acc__3
         val to_rank : t @ local -> int
         val to_name : t -> string
         val descriptions : (string * int) list
@@ -117,13 +531,13 @@ module Normal_portable : sig
     | Foo of int
     | Bar
     | Exception
-  [@@deriving variants ~portable]
+  [@@deriving variants ~fold ~portable]
 end = struct
   type t =
     | Foo of int
     | Bar
     | Exception
-  [@@deriving variants]
+  [@@deriving variants ~fold]
 end
 
 [%%expect
@@ -151,21 +565,6 @@ module Normal_portable :
           bar:('acc__1 -> t Variant.t -> 'acc__2) ->
           exception_:('acc__2 -> t Variant.t -> 'acc__3) -> 'acc__3 @@
           portable
-        val iter :
-          foo:((int -> t) Variant.t -> unit) ->
-          bar:(t Variant.t -> unit) ->
-          exception_:(t Variant.t -> unit) -> unit @@ portable
-        val map :
-          t ->
-          foo:((int -> t) Variant.t -> int -> 'result__) ->
-          bar:(t Variant.t -> 'result__) ->
-          exception_:(t Variant.t -> 'result__) -> 'result__ @@ portable
-        val make_matcher :
-          foo:((int -> t) Variant.t ->
-               'acc__0 -> (int -> 'result__) * 'acc__1) ->
-          bar:(t Variant.t -> 'acc__1 -> (unit -> 'result__) * 'acc__2) ->
-          exception_:(t Variant.t -> 'acc__2 -> (unit -> 'result__) * 'acc__3) ->
-          'acc__0 -> (t -> 'result__) * 'acc__3 @@ portable
         val to_rank : t @ local -> int @@ portable
         val to_name : t -> string @@ portable
         val descriptions : (string * int) list @@ portable
@@ -192,12 +591,12 @@ module Mutable_portable_error : sig
   type t =
     | Foo
     | Bar of int ref
-  [@@deriving variants ~portable]
+  [@@deriving variants ~fold ~portable]
 end = struct
   type t =
     | Foo
     | Bar of int ref
-  [@@deriving variants]
+  [@@deriving variants ~fold]
 end
 
 [%%expect
@@ -228,8 +627,8 @@ Error: Signature mismatch:
          bar:('b -> (int ref -> t) Variant.t -> 'd) -> 'd
        Type t Variant.t @ contended -> 'b is not compatible with type
          t Variant.t -> 'b
-       File "test.mlt", lines 197-200, characters 2-33: Expected declaration
-       File "test.mlt", lines 202-205, characters 2-23: Actual declaration
+       File "test.mlt", lines 596-599, characters 2-39: Expected declaration
+       File "test.mlt", lines 601-604, characters 2-29: Actual declaration
 |}]
 
 module Normal_inline_record = struct
@@ -239,7 +638,7 @@ module Normal_inline_record = struct
         ; b : string
         }
     | Bar
-  [@@deriving variants]
+  [@@deriving variants ~fold]
 end
 
 [%%expect
@@ -261,18 +660,6 @@ module Normal_inline_record :
           init:'a ->
           foo:('a -> (a:int -> b:string -> t) Variant.t -> 'b) ->
           bar:('b -> t Variant.t -> 'c) -> 'c
-        val iter :
-          foo:((a:int -> b:string -> t) Variant.t -> unit) ->
-          bar:(t Variant.t -> unit) -> unit
-        val map :
-          t ->
-          foo:((a:int -> b:string -> t) Variant.t -> a:int -> b:string -> 'a) ->
-          bar:(t Variant.t -> 'a) -> 'a
-        val make_matcher :
-          foo:((a:int -> b:string -> t) Variant.t ->
-               'a -> (a:int -> b:string -> 'b) * 'c) ->
-          bar:(t Variant.t -> 'c -> (unit -> 'b) * 'd) ->
-          'a -> (t -> 'b) * 'd
         val to_rank : t @ local -> int
         val to_name : t -> string
         val descriptions : (string * int) list
@@ -286,7 +673,7 @@ module Poly = struct
     | `Bar
     | `Exception
     ]
-  [@@deriving variants]
+  [@@deriving variants ~fold]
 end
 
 [%%expect
@@ -313,20 +700,6 @@ module Poly :
           foo:('a -> ('b -> [> `Foo of 'b ]) Variant.t -> 'c) ->
           bar:('c -> [> `Bar ] Variant.t -> 'd) ->
           exception_:('d -> [> `Exception ] Variant.t -> 'e) -> 'e
-        val iter :
-          foo:(('a -> [> `Foo of 'a ]) Variant.t -> unit) ->
-          bar:([> `Bar ] Variant.t -> unit) ->
-          exception_:([> `Exception ] Variant.t -> unit) -> unit
-        val map :
-          [< `Bar | `Exception | `Foo of 'a ] ->
-          foo:(('b -> [> `Foo of 'b ]) Variant.t -> 'a -> 'c) ->
-          bar:([> `Bar ] Variant.t -> 'c) ->
-          exception_:([> `Exception ] Variant.t -> 'c) -> 'c
-        val make_matcher :
-          foo:(('a -> [> `Foo of 'a ]) Variant.t -> 'b -> ('c -> 'd) * 'e) ->
-          bar:([> `Bar ] Variant.t -> 'e -> (unit -> 'd) * 'f) ->
-          exception_:([> `Exception ] Variant.t -> 'f -> (unit -> 'd) * 'g) ->
-          'b -> ([< `Bar | `Exception | `Foo of 'c ] -> 'd) * 'g
         val to_rank : [< `Bar | `Exception | `Foo of 'a ] @ local -> int
         val to_name : [< `Bar | `Exception | `Foo of 'a ] -> string
         val descriptions : (string * int) list
@@ -338,12 +711,12 @@ module Wildcard : sig
   type _ t =
     | A
     | B
-  [@@deriving variants]
+  [@@deriving variants ~fold]
 end = struct
   type _ t =
     | A
     | B
-  [@@deriving variants]
+  [@@deriving variants ~fold]
 end
 
 [%%expect
@@ -365,19 +738,6 @@ module Wildcard :
           init:'acc__0 ->
           a:('acc__0 -> 'param__001_ t Variant.t -> 'acc__1) ->
           b:('acc__1 -> 'param__001_ t Variant.t -> 'acc__2) -> 'acc__2
-        val iter :
-          a:('param__001_ t Variant.t -> unit) ->
-          b:('param__001_ t Variant.t -> unit) -> unit
-        val map :
-          'param__001_ t ->
-          a:('param__001_ t Variant.t -> 'result__) ->
-          b:('param__001_ t Variant.t -> 'result__) -> 'result__
-        val make_matcher :
-          a:('param__001_ t Variant.t ->
-             'acc__0 -> (unit -> 'result__) * 'acc__1) ->
-          b:('param__001_ t Variant.t ->
-             'acc__1 -> (unit -> 'result__) * 'acc__2) ->
-          'acc__0 -> ('param__001_ t -> 'result__) * 'acc__2
         val to_rank : 'param__001_ t @ local -> int
         val to_name : 'param__001_ t -> string
         val descriptions : (string * int) list
@@ -397,14 +757,14 @@ module Gadt_no_existentials : sig
     | C1 : bool -> unit t
     | C2 : { a : bool } -> float t
     | C3 : 'a -> 'a t
-  [@@deriving variants]
+  [@@deriving variants ~fold]
 end = struct
   type _ t =
     | C0 of int
     | C1 : bool -> unit t
     | C2 : { a : bool } -> float t
     | C3 : 'a -> 'a t
-  [@@deriving variants]
+  [@@deriving variants ~fold]
 end
 
 [%%expect
@@ -438,11 +798,6 @@ module Gadt_no_existentials :
           c2:('acc__2 -> (a:bool -> float t) Variant.t -> 'acc__3) ->
           c3:('acc__3 -> ('a__009_ -> 'a__009_ t) Variant.t -> 'acc__4) ->
           'acc__4
-        val iter :
-          c0:((int -> 'param__008_ t) Variant.t -> unit) ->
-          c1:((bool -> unit t) Variant.t -> unit) ->
-          c2:((a:bool -> float t) Variant.t -> unit) ->
-          c3:(('a__009_ -> 'a__009_ t) Variant.t -> unit) -> unit
         val to_rank : 'param__008_ t @ local -> int
         val to_name : 'param__008_ t -> string
         val descriptions : (string * int) list
@@ -459,12 +814,12 @@ module Gadt_existentials : sig
   type 'a t =
     | C1 : bool t
     | C2 : 'b * 'a -> 'b t
-  [@@deriving variants]
+  [@@deriving variants ~fold]
 end = struct
   type 'a t =
     | C1 : bool t
     | C2 : 'b * 'a -> 'b t
-  [@@deriving variants]
+  [@@deriving variants ~fold]
 end
 
 [%%expect
@@ -486,9 +841,6 @@ module Gadt_existentials :
           c2:('acc__1 ->
               ('b__012_ -> 'a__013_ -> 'b__012_ t) Variant.t -> 'acc__2) ->
           'acc__2
-        val iter :
-          c1:(bool t Variant.t -> unit) ->
-          c2:(('b__012_ -> 'a__013_ -> 'b__012_ t) Variant.t -> unit) -> unit
         val to_rank : 'a t @ local -> int
         val to_name : 'a t -> string
         val descriptions : (string * int) list
@@ -500,12 +852,12 @@ module Unboxed : sig
   type t =
     | Foo of { foo : float# } [@variants.non_value]
     | Bar of float# [@variants.non_value]
-  [@@deriving variants]
+  [@@deriving variants ~fold ~map]
 end = struct
   type t =
     | Foo of { foo : float# } [@variants.non_value]
     | Bar of float# [@variants.non_value]
-  [@@deriving variants]
+  [@@deriving variants ~fold ~map]
 end
 
 [%%expect
@@ -525,19 +877,10 @@ module Unboxed :
           init:'acc__0 ->
           foo:('acc__0 -> (foo:float# -> t) Variant.t -> 'acc__1) ->
           bar:('acc__1 -> (float# -> t) Variant.t -> 'acc__2) -> 'acc__2
-        val iter :
-          foo:((foo:float# -> t) Variant.t -> unit) ->
-          bar:((float# -> t) Variant.t -> unit) -> unit
         val map :
           t ->
           foo:((foo:float# -> t) Variant.t -> foo:float# -> 'result__) ->
           bar:((float# -> t) Variant.t -> float# -> 'result__) -> 'result__
-        val make_matcher :
-          foo:((foo:float# -> t) Variant.t ->
-               'acc__0 -> (foo:float# -> 'result__) * 'acc__1) ->
-          bar:((float# -> t) Variant.t ->
-               'acc__1 -> (float# -> 'result__) * 'acc__2) ->
-          'acc__0 -> (t -> 'result__) * 'acc__2
         val to_rank : t @ local -> int
         val to_name : t -> string
         val descriptions : (string * int) list
@@ -560,7 +903,7 @@ module Gadt_non_values : sig
     | C2 : ('c : float64). bool -> ('c, float, float) t
     | C3 : ('a : any). bool -> ('a, float, float) t
     | C4 : 'a -> ('a, _, _) t
-  [@@deriving variants]
+  [@@deriving variants ~fold]
 end = struct
   type ('a : any, 'b, _ : any) t =
     | C0 of ('b, 'b, 'a) t
@@ -568,7 +911,7 @@ end = struct
     | C2 : ('c : float64). bool -> ('c, float, float) t
     | C3 : ('a : any). bool -> ('a, float, float) t
     | C4 : 'a -> ('a, _, _) t
-  [@@deriving variants]
+  [@@deriving variants ~fold]
 end
 
 [%%expect
@@ -633,17 +976,6 @@ module Gadt_non_values :
                 ('a__030_ -> ('a__030_, 'unnamed__031_, 'unnamed__032_) t)
                 Variant.t -> 'acc__5) ->
             'acc__5
-        val iter :
-          'b ('a : any) ('param__026_ : any) 'a__027_ ('c__028_ : float64)
-            ('a__029_ : any) 'a__030_ 'unnamed__031_ 'unnamed__032_.
-            c0:((('b, 'b, 'a) t -> ('a, 'b, 'param__026_) t) Variant.t ->
-                unit) ->
-            c1:((a:'a__027_ -> ('a__027_, unit, unit) t) Variant.t -> unit) ->
-            c2:((bool -> ('c__028_, float, float) t) Variant.t -> unit) ->
-            c3:((bool -> ('a__029_, float, float) t) Variant.t -> unit) ->
-            c4:(('a__030_ -> ('a__030_, 'unnamed__031_, 'unnamed__032_) t)
-                Variant.t -> unit) ->
-            unit
         val to_rank :
           ('a : any) 'b ('param__026_ : any).
             ('a, 'b, 'param__026_) t @ local -> int
@@ -659,7 +991,7 @@ type fail1 =
   [ Poly.t
   | `Blah
   ]
-[@@deriving variants]
+[@@deriving variants ~fold]
 
 [%%expect
   {|
@@ -671,7 +1003,7 @@ type fail2 =
   [> `Foo
   | `Bar
   ]
-[@@deriving variants]
+[@@deriving variants ~fold]
 
 [%%expect
   {|
@@ -683,7 +1015,7 @@ type fail3 =
   [< `Foo
   | `Bar
   ]
-[@@deriving variants]
+[@@deriving variants ~fold]
 
 [%%expect
   {|
@@ -695,10 +1027,54 @@ type fail4 =
   [< `Foo
   | `Bar > `Foo
   ]
-[@@deriving variants]
+[@@deriving variants ~fold]
 
 [%%expect
   {|
 Line _, characters _-_:
 Error: ppx_variants_conv: polymorphic variants with a row variable are not supported
+|}]
+
+module Gadt_with_matcher = struct
+  type _ t = A : int t [@@deriving variants ~make_matcher]
+end
+
+[%%expect
+  {|
+Line _, characters _-_:
+Error: ppx_variants_conv: ~make_matcher is not supported for GADTs
+|}]
+
+module Gadt_with_matcher_signature : sig
+  type _ t = A : int t [@@deriving variants ~make_matcher]
+end = struct
+  type _ t = A : int t
+end
+
+[%%expect
+  {|
+Line _, characters _-_:
+Error: ppx_variants_conv: ~make_matcher is not supported for GADTs
+|}]
+
+module Gadt_with_map = struct
+  type _ t = A : int t [@@deriving variants ~map]
+end
+
+[%%expect
+  {|
+Line _, characters _-_:
+Error: ppx_variants_conv: ~map is not supported for GADTs
+|}]
+
+module Gadt_with_map_signature : sig
+  type _ t = A : int t [@@deriving variants ~map]
+end = struct
+  type _ t = A : int t
+end
+
+[%%expect
+  {|
+Line _, characters _-_:
+Error: ppx_variants_conv: ~map is not supported for GADTs
 |}]

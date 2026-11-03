@@ -1,7 +1,7 @@
 (** Alpha-renames type variables in the same type environment. Also replaces wildcard type
     variables ([_]) with new names *)
 
-open Base
+open! Ppx_helpers.Base_lite
 open Ppxlib
 
 (** Stores the mapping from old to new type variable names *)
