@@ -1,21 +1,21 @@
-open Base
+open Ppx_helpers.Base_lite
 open Ppxlib
 
-type t = string Map.M(String).t
+type t = string String.Map.t
 
-let empty = Map.empty (module String)
+let empty = String.Map.empty
 
 let var t var =
-  match Map.find t var with
+  match String.Map.find t var with
   | None ->
     let fresh = Ppxlib.gen_symbol ~prefix:var () in
-    Map.set t ~key:var ~data:fresh, fresh
+    String.Map.set t ~key:var ~data:fresh, fresh
   | Some var -> t, var
 ;;
 
 let any t =
   let fresh = Ppxlib.gen_symbol ~prefix:"unnamed" () in
-  Map.set t ~key:fresh ~data:fresh, fresh
+  String.Map.set t ~key:fresh ~data:fresh, fresh
 ;;
 
 let fold_map =
@@ -61,4 +61,4 @@ let fold_map =
   end
 ;;
 
-let range t = Map.data t
+let range t = String.Map.data t

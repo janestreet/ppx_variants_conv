@@ -1,0 +1,5 @@
+(library
+ (name ppx_variants_conv_test)
+ (libraries variantslib)
+ (preprocess
+  (pps ppx_variants_conv)))

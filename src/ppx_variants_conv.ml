@@ -3,7 +3,7 @@
    especially important to not use polymorphic comparisons, since we are moving more and
    more to code that doesn't have them in scope. *)
 
-open Base
+open Ppx_helpers.Base_lite
 open Ppxlib
 open Ast_builder.Default
 
@@ -201,11 +201,11 @@ module Inspect = struct
         Ppxlib_jane.Shim.Constructor_declaration.extract_vars_with_jkind_annotations cd
       in
       let bound_vars = List.map pcd_vars ~f:(fun (s, jkind) -> s.txt, jkind) in
-      let bound_vars_names = List.map ~f:fst bound_vars |> Set.of_list (module String) in
+      let bound_vars_names = List.map ~f:fst bound_vars |> String.Set.of_list in
       (* All free vars not bound get jkind [None] *)
       let free_vars_names =
         Alpha_renaming.range renaming
-        |> List.filter ~f:(fun s -> not (Set.mem bound_vars_names s))
+        |> List.filter ~f:(fun s -> not (String.Set.mem bound_vars_names s))
       in
       cd, bound_vars @ List.map ~f:(fun s -> s, None) free_vars_names)
     else cd, []
@@ -235,11 +235,11 @@ module Inspect = struct
     match Ppxlib_jane.Shim.Type_kind.of_parsetree td.ptype_kind with
     | Ptype_variant cds ->
       let cds = List.map cds ~f:constructor in
-      let names_as_string = Hashtbl.create (module String) in
+      let names_as_string = String.Table.create () in
       List.iter cds ~f:(fun { name; loc; _ } ->
         let s = variant_name_to_string name in
-        match Hashtbl.find names_as_string s with
-        | None -> Hashtbl.add_exn names_as_string ~key:s ~data:name
+        match String.Table.find names_as_string s with
+        | None -> String.Table.add_exn names_as_string ~key:s ~data:name
         | Some name' ->
           Location.raise_errorf
             ~loc
@@ -265,6 +265,15 @@ end
 let variants_module = function
   | "t" -> "Variants"
   | type_name -> "Variants_of_" ^ type_name
+;;
+
+let check_gadt_supported ~loc ~flag_name ~enabled variants =
+  if enabled && List.exists variants ~f:Variant_constructor.is_gadt
+  then
+    Location.raise_errorf
+      ~loc
+      "ppx_variants_conv: ~%s is not supported for GADTs"
+      flag_name
 ;;
 
 (* Extract name and jkind from type parameters, generating names for [_] parameters *)
@@ -440,7 +449,18 @@ module Gen_sig = struct
     val_ ~loc "to_name" [%type: [%t variant_type] -> string]
   ;;
 
-  let variant ~variant_type ~ty_name ~params ~portable loc variants =
+  let variant
+    ~variant_type
+    ~ty_name
+    ~params
+    ~portable
+    ~make_matcher
+    ~fold
+    ~iter
+    ~map
+    loc
+    variants
+    =
     let tester_type = [%type: [%t variant_type] -> bool] in
     let helpers, variant_defs =
       List.unzip
@@ -477,15 +497,26 @@ module Gen_sig = struct
                   ~loc
                   (variant_defs
                    @ List.filter_opt
-                       [ Some (v_fold_fun ~variant_type ~params loc variants ~portable)
-                       ; Some (v_iter_fun ~variant_type ~params loc variants ~portable)
-                       ; v_map_fun_opt ~variant_type ~params loc variants ~portable
-                       ; v_make_matcher_fun_opt
-                           ~variant_type
-                           ~params
-                           loc
-                           variants
-                           ~portable
+                       [ (if fold
+                          then
+                            Some (v_fold_fun ~variant_type ~params loc variants ~portable)
+                          else None)
+                       ; (if iter
+                          then
+                            Some (v_iter_fun ~variant_type ~params loc variants ~portable)
+                          else None)
+                       ; (if map
+                          then v_map_fun_opt ~variant_type ~params loc variants ~portable
+                          else None)
+                       ; (if make_matcher
+                          then
+                            v_make_matcher_fun_opt
+                              ~variant_type
+                              ~params
+                              loc
+                              variants
+                              ~portable
+                          else None)
                        ; Some
                            (v_to_rank_fun
                               ~variant_type
@@ -511,7 +542,7 @@ module Gen_sig = struct
       ]
   ;;
 
-  let variants_of_td td portable =
+  let variants_of_td td portable make_matcher fold iter map =
     let ty_name = td.ptype_name.txt in
     let loc = td.ptype_loc in
     let params = name_params td.ptype_params in
@@ -520,10 +551,23 @@ module Gen_sig = struct
         Ppxlib_jane.Ast_builder.Default.Latest.ptyp_var ~loc name.txt jkind)
     in
     let variant_type = ptyp_constr ~loc (Located.map lident td.ptype_name) params in
-    variant ~variant_type ~ty_name ~params ~portable loc (Inspect.type_decl td)
+    let variants = Inspect.type_decl td in
+    check_gadt_supported ~loc ~flag_name:"make_matcher" ~enabled:make_matcher variants;
+    check_gadt_supported ~loc ~flag_name:"map" ~enabled:map variants;
+    variant
+      ~variant_type
+      ~ty_name
+      ~params
+      ~portable
+      ~make_matcher
+      ~fold
+      ~iter
+      ~map
+      loc
+      variants
   ;;
 
-  let generate ~loc ~path:_ (rec_flag, tds) portable =
+  let generate ~loc ~path:_ (rec_flag, tds) portable make_matcher fold iter map =
     (match rec_flag with
      | Nonrecursive ->
        Location.raise_errorf
@@ -531,7 +575,7 @@ module Gen_sig = struct
          "nonrec is not compatible with the `ppx_variants_conv' preprocessor"
      | _ -> ());
     match tds with
-    | [ td ] -> variants_of_td td portable
+    | [ td ] -> variants_of_td td portable make_matcher fold iter map
     | _ -> Location.raise_errorf ~loc "ppx_variants_conv: not supported"
   ;;
 end
@@ -612,7 +656,7 @@ module Gen_str = struct
           let body =
             if Variant_constructor.is_gadt v
             then locally_abstract_match loc cases ~td
-            else pexp_function ~loc cases
+            else pexp_function_cases ~loc cases
           in
           [%stri let [%p pvar ~loc name] = [%e body] [@@warning "-4"]]
         in
@@ -681,54 +725,49 @@ module Gen_str = struct
     [%stri let descriptions = [%e elist ~loc variant_names]]
   ;;
 
+  let case_analysis_binding_values loc variants ~f =
+    let module V = Variant_constructor in
+    List.map variants ~f:(fun variant ->
+      let pattern =
+        match variant.V.kind with
+        | `Polymorphic _ ->
+          let arg =
+            ppat_tuple_opt ~loc (List.map (V.args variant) ~f:(fun (_, v) -> pvar ~loc v))
+          in
+          ppat_variant ~loc variant.V.name arg
+        | `Normal _ ->
+          let arg =
+            ppat_tuple_opt ~loc (List.map (V.args variant) ~f:(fun (_, v) -> pvar ~loc v))
+          in
+          ppat_construct ~loc (Located.lident ~loc variant.V.name) arg
+        | `Normal_inline_record (fields, _) ->
+          let arg =
+            ppat_record
+              ~loc
+              (List.map2_exn fields (V.args variant) ~f:(fun field (_, v) ->
+                 Located.lident ~loc field.pld_name.txt, pvar ~loc v))
+              Closed
+          in
+          ppat_construct ~loc (Located.lident ~loc variant.V.name) (Some arg)
+      in
+      let rhs =
+        List.fold_left (V.args variant) ~init:(f variant) ~f:(fun acc (label, var) ->
+          pexp_apply ~loc acc [ label, evar ~loc var ])
+      in
+      case ~guard:None ~lhs:pattern ~rhs)
+  ;;
+
   let v_map_fun_opt loc variants =
     let module V = Variant_constructor in
-    (* We are currently not generating getter for GADTs which mean we can't generate [map] *)
     if List.exists variants ~f:V.is_gadt
     then None
     else (
-      let variant_match_case variant =
-        let pattern =
-          match variant.V.kind with
-          | `Polymorphic _ ->
-            let arg =
-              ppat_tuple_opt
-                ~loc
-                (List.map (V.args variant) ~f:(fun (_, v) -> pvar ~loc v))
-            in
-            ppat_variant ~loc variant.V.name arg
-          | `Normal _ ->
-            let arg =
-              ppat_tuple_opt
-                ~loc
-                (List.map (V.args variant) ~f:(fun (_, v) -> pvar ~loc v))
-            in
-            ppat_construct ~loc (Located.lident ~loc variant.V.name) arg
-          | `Normal_inline_record (fields, _) ->
-            let arg =
-              ppat_record
-                ~loc
-                (List.map2_exn fields (V.args variant) ~f:(fun f (_, v) ->
-                   Located.lident ~loc f.pld_name.txt, pvar ~loc v))
-                Closed
-            in
-            ppat_construct ~loc (Located.lident ~loc variant.V.name) (Some arg)
-        in
-        let uncapitalized = variant_name_to_string variant.V.name in
-        let value =
-          List.fold_left
-            (V.args variant)
-            ~init:
-              (eapply
-                 ~loc
-                 (evar ~loc (uncapitalized ^ "_fun__"))
-                 [ evar ~loc uncapitalized ])
-            ~f:(fun acc_expr (label, var) ->
-              pexp_apply ~loc acc_expr [ label, evar ~loc var ])
-        in
-        case ~guard:None ~lhs:pattern ~rhs:value
+      let cases =
+        case_analysis_binding_values loc variants ~f:(fun variant ->
+          let variant_name = variant_name_to_string variant.V.name in
+          eapply ~loc (evar ~loc (variant_name ^ "_fun__")) [ evar ~loc variant_name ])
       in
-      let body = pexp_match ~loc [%expr t__] (List.map variants ~f:variant_match_case) in
+      let body = pexp_match ~loc [%expr t__] cases in
       let patterns =
         List.map variants ~f:(fun variant ->
           label_arg_fun loc (variant_name_to_string variant.V.name))
@@ -753,25 +792,20 @@ module Gen_str = struct
 
   let v_make_matcher_fun_opt loc variants =
     let module V = Variant_constructor in
-    (* We are currently not generating getter for GADTs which mean we can't generate [map]
-       and consequently can't generate a matcher either *)
     if List.exists variants ~f:V.is_gadt
     then None
     else (
       let result =
-        let map =
-          List.fold_left variants ~init:[%expr map] ~f:(fun acc variant ->
+        let cases =
+          case_analysis_binding_values loc variants ~f:(fun variant ->
             let variant_name = variant_name_to_string variant.V.name in
-            pexp_apply
-              ~loc
-              acc
-              [ ( Labelled variant_name
-                , match V.args variant with
-                  | [] -> [%expr fun _ -> [%e evar ~loc (variant_name ^ "_gen__")] ()]
-                  | _ :: _ -> [%expr fun _ -> [%e evar ~loc (variant_name ^ "_gen__")]] )
-              ])
+            let generator = evar ~loc (variant_name ^ "_gen__") in
+            match V.args variant with
+            | [] -> eapply ~loc generator [ eunit ~loc ]
+            | _ :: _ -> generator)
         in
-        [%expr [%e map], compile_acc__]
+        let matcher = pexp_function_cases ~loc cases in
+        [%expr [%e matcher], compile_acc__]
       in
       let body =
         List.fold_right variants ~init:result ~f:(fun variant acc ->
@@ -820,7 +854,7 @@ module Gen_str = struct
     let body =
       if List.exists variants ~f:Variant_constructor.is_gadt
       then locally_abstract_match loc cases ~td
-      else pexp_function ~loc cases
+      else pexp_function_cases ~loc cases
     in
     [%stri let to_rank : _ @ local -> _ = [%e body]]
   ;;
@@ -832,12 +866,12 @@ module Gen_str = struct
     let body =
       if List.exists variants ~f:Variant_constructor.is_gadt
       then locally_abstract_match loc cases ~td
-      else pexp_function ~loc cases
+      else pexp_function_cases ~loc cases
     in
     [%stri let to_name = [%e body]]
   ;;
 
-  let variant ~variant_name ~td loc ty =
+  let variant ~variant_name ~td ~make_matcher ~fold ~iter ~map loc ty =
     let constructors, testers, getters, variants = helpers_and_variants loc ~td ty in
     constructors
     @ testers
@@ -852,10 +886,10 @@ module Gen_str = struct
                   ~loc
                   (variants
                    @ List.filter_opt
-                       [ Some (v_fold_fun loc ty)
-                       ; Some (v_iter_fun loc ty)
-                       ; v_map_fun_opt loc ty
-                       ; v_make_matcher_fun_opt loc ty
+                       [ (if fold then Some (v_fold_fun loc ty) else None)
+                       ; (if iter then Some (v_iter_fun loc ty) else None)
+                       ; (if map then v_map_fun_opt loc ty else None)
+                       ; (if make_matcher then v_make_matcher_fun_opt loc ty else None)
                        ; Some (v_to_rank loc ty ~td)
                        ; Some (v_to_name loc ty ~td)
                        ; Some (v_descriptions loc ty)
@@ -863,13 +897,16 @@ module Gen_str = struct
       ]
   ;;
 
-  let variants_of_td td =
+  let variants_of_td td ~make_matcher ~fold ~iter ~map =
     let variant_name = td.ptype_name.txt in
     let loc = td.ptype_loc in
-    variant ~variant_name ~td loc (Inspect.type_decl td)
+    let variants = Inspect.type_decl td in
+    check_gadt_supported ~loc ~flag_name:"make_matcher" ~enabled:make_matcher variants;
+    check_gadt_supported ~loc ~flag_name:"map" ~enabled:map variants;
+    variant ~variant_name ~td ~make_matcher ~fold ~iter ~map loc variants
   ;;
 
-  let generate ~loc ~path:_ (rec_flag, tds) =
+  let generate ~loc ~path:_ (rec_flag, tds) make_matcher fold iter map =
     (match rec_flag with
      | Nonrecursive ->
        Location.raise_errorf
@@ -877,7 +914,7 @@ module Gen_str = struct
          "nonrec is not compatible with the `ppx_variants_conv' preprocessor"
      | _ -> ());
     match tds with
-    | [ td ] -> variants_of_td td
+    | [ td ] -> variants_of_td td ~make_matcher ~fold ~iter ~map
     | _ -> Location.raise_errorf ~loc "ppx_variants_conv: not supported"
   ;;
 end
@@ -885,7 +922,19 @@ end
 let variants =
   Deriving.add
     "variants"
-    ~str_type_decl:(Deriving.Generator.make_noarg Gen_str.generate)
+    ~str_type_decl:
+      (Deriving.Generator.make
+         Deriving.Args.(
+           empty +> flag "make_matcher" +> flag "fold" +> flag "iter" +> flag "map")
+         Gen_str.generate)
     ~sig_type_decl:
-      (Deriving.Generator.make Deriving.Args.(empty +> flag "portable") Gen_sig.generate)
+      (Deriving.Generator.make
+         Deriving.Args.(
+           empty
+           +> flag "portable"
+           +> flag "make_matcher"
+           +> flag "fold"
+           +> flag "iter"
+           +> flag "map")
+         Gen_sig.generate)
 ;;
